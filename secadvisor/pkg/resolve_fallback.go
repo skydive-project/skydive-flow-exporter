@@ -28,18 +28,18 @@ func NewResolveFallback(resolver Resolver) Resolver {
 	}
 }
 
-// IPToName resolve ip address to name
-func (rc *resolveFallback) IPToName(ipString, nodeTID string) (string, error) {
+// IPToContext resolves IP address to Peer context
+func (rc *resolveFallback) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
 	if ipString == "" {
-		return "", nil
+		return nil, nil
 	}
 
-	name, err := rc.resolver.IPToName(ipString, nodeTID)
+	context, err := rc.resolver.IPToContext(ipString, nodeTID)
 	if err != nil {
-		return "", nil
+		return nil, nil
 	}
 
-	return name, nil
+	return context, nil
 }
 
 // TIDToType resolve tid to type

@@ -19,7 +19,6 @@ package mod
 
 import (
 	"fmt"
-	"runtime"
 	"testing"
 	"time"
 
@@ -33,14 +32,22 @@ import (
 type fakeResolver struct {
 }
 
-func (c *fakeResolver) IPToName(ipString, nodeTID string) (string, error) {
+func (c *fakeResolver) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
 	switch ipString {
 	case "192.168.0.5":
-		return "fake_container_one", nil
+		return &PeerContext{
+			Type: "pod",
+			Name: "one-namespace/fake-pod-one",
+			Set:  "one-namespace/replica-set-one",
+		}, nil
 	case "173.194.40.147":
-		return "fake_container_two", nil
+		return &PeerContext{
+			Type: "pod",
+			Name: "two-namespace/fake-pod-two",
+			Set:  "two-namespace/replica-set-two",
+		}, nil
 	default:
-		return "", fmt.Errorf("fake graph client")
+		return nil, fmt.Errorf("fake graph client")
 	}
 }
 
@@ -57,24 +64,16 @@ func getTestTransformer() core.Transformer {
 }
 
 func assertEqual(t *testing.T, expected, actual interface{}) {
+	t.Helper()
 	if expected != actual {
-		msg := "Equal assertion failed"
-		_, file, no, ok := runtime.Caller(1)
-		if ok {
-			msg += fmt.Sprintf(" on %s:%d", file, no)
-		}
-		t.Fatalf("%s: (expected: %v, actual: %v)", msg, expected, actual)
+		t.Fatalf("Equal assertion failed: (expected: %T:%#v, actual: %T:%#v)", expected, expected, actual, actual)
 	}
 }
 
 func assertEqualInt64(t *testing.T, expected, actual int64) {
+	t.Helper()
 	if expected != actual {
-		msg := "Equal assertion failed"
-		_, file, no, ok := runtime.Caller(1)
-		if ok {
-			msg += fmt.Sprintf(" on %s:%d", file, no)
-		}
-		t.Fatalf("%s: (expected: %v, actual: %v)", msg, expected, actual)
+		t.Fatalf("Equal assertion failed: (expected: %v, actual: %v)", expected, actual)
 	}
 }
 
@@ -121,10 +120,17 @@ func Test_Transform_basic_flow(t *testing.T) {
 	assertEqual(t, "STARTED", secAdvFlow.Status)
 	assertEqualInt64(t, 1546338030000, secAdvFlow.Start)
 	assertEqualInt64(t, 1546338030000, secAdvFlow.Last)
-	// Test container and node enrichment
 	assertEqual(t, "fake_node_type", secAdvFlow.NodeType)
-	assertEqual(t, "fake_container_one", secAdvFlow.Network.AName)
-	assertEqual(t, "fake_container_two", secAdvFlow.Network.BName)
+	// Test legacy container names
+	assertEqual(t, "0_0_one-namespace/fake-pod-one_0", secAdvFlow.Network.AName)
+	assertEqual(t, "0_0_two-namespace/fake-pod-two_0", secAdvFlow.Network.BName)
+	// Test container context
+	assertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
+	assertEqual(t, "one-namespace/fake-pod-one", secAdvFlow.Context.A.Name)
+	assertEqual(t, "one-namespace/replica-set-one", secAdvFlow.Context.A.Set)
+	assertEqual(t, PeerTypePod, secAdvFlow.Context.B.Type)
+	assertEqual(t, "two-namespace/fake-pod-two", secAdvFlow.Context.B.Name)
+	assertEqual(t, "two-namespace/replica-set-two", secAdvFlow.Context.B.Set)
 	// Test that transport layer ports are encoded as strings
 	assertEqual(t, "47838", secAdvFlow.Transport.A)
 	assertEqual(t, "80", secAdvFlow.Transport.B)
@@ -152,7 +158,7 @@ func Test_Transform_Status_updates(t *testing.T) {
 }
 
 func getTestTransformerWithLocalTopology(t *testing.T) core.Transformer {
-	localGremlinClient := newLocalGremlinQueryHelper(newRuncTopologyGraph(t))
+	localGremlinClient := newLocalGremlinQueryHelper(newKubernetesOnRuncTopologyGraph(t))
 
 	runcResolver := &resolveRunc{localGremlinClient}
 	dockerResolver := &resolveDocker{localGremlinClient}
@@ -181,7 +187,7 @@ func getRuncFlow() *flow.Flow {
 		},
 		Network: &flow.FlowLayer{
 			Protocol: flow.FlowProtocol_IPV4,
-			A:        "172.30.149.34",
+			A:        "172.30.60.108",
 			B:        "111.112.113.114",
 		},
 		Transport: &flow.TransportLayer{
@@ -197,21 +203,23 @@ func getRuncFlow() *flow.Flow {
 		},
 		Start:   start,
 		Last:    start,
-		NodeTID: "ce2ed4fb-1340-57b1-796f-5d648665aed7",
+		NodeTID: "c3687053-ba82-5ccc-4c43-73a297f55f47",
 	}
 }
 
-func TestTransformShouldResolveRuncContainerNames(t *testing.T) {
+func TestTransformShouldResolveRuncContainerContext(t *testing.T) {
 	transformer := getTestTransformerWithLocalTopology(t)
 	f := getRuncFlow()
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
 	assertEqual(t, "netns", secAdvFlow.NodeType)
-	assertEqual(t, "0_0_my-container-name-5bbc557665-h66vq_0", secAdvFlow.Network.AName)
-}
+	assertEqual(t, "0_0_kube-system/kubernetes-dashboard-7996b848f4-pmv4z_0", secAdvFlow.Network.AName) // Legacy field
+	assertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
+	assertEqual(t, "kube-system/kubernetes-dashboard-7996b848f4-pmv4z", secAdvFlow.Context.A.Name)
+	assertEqual(t, "ReplicaSet:kube-system/kubernetes-dashboard-7996b848f4", secAdvFlow.Context.A.Set)
 
-func TestTransformShouldLeaveNameBlankWhenCantFindContainerNames(t *testing.T) {
-	transformer := getTestTransformerWithLocalTopology(t)
-	f := getRuncFlow()
-	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
+	// Name should be blank for IPs that are not pods
 	assertEqual(t, "", secAdvFlow.Network.BName)
+	if secAdvFlow.Context.B != nil {
+		t.Fatal("Expected Context.B to be nil")
+	}
 }
