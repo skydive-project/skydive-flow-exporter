@@ -209,9 +209,9 @@ func TestTransformShouldResolveRuncContainerNames(t *testing.T) {
 	assertEqual(t, "0_0_my-container-name-5bbc557665-h66vq_0", secAdvFlow.Network.AName)
 }
 
-func TestTransformShouldUseIPWhenCantFindContainerNames(t *testing.T) {
+func TestTransformShouldLeaveNameBlankWhenCantFindContainerNames(t *testing.T) {
 	transformer := getTestTransformerWithLocalTopology(t)
 	f := getRuncFlow()
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, "111.112.113.114", secAdvFlow.Network.BName)
+	assertEqual(t, "", secAdvFlow.Network.BName)
 }

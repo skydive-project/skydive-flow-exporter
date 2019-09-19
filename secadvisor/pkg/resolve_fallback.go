@@ -36,7 +36,7 @@ func (rc *resolveFallback) IPToName(ipString, nodeTID string) (string, error) {
 
 	name, err := rc.resolver.IPToName(ipString, nodeTID)
 	if err != nil {
-		return ipString, nil
+		return "", nil
 	}
 
 	return name, nil
