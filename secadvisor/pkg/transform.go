@@ -47,7 +47,7 @@ func NewTransform(cfg *viper.Viper) (interface{}, error) {
 	}, nil
 }
 
-const version = "1.0.8"
+const version = "1.1.0"
 
 // SecurityAdvisorFlowLayer is the flow layer for a security advisor flow
 type SecurityAdvisorFlowLayer struct {
