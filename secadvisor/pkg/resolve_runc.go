@@ -47,7 +47,7 @@ type resolveRunc struct {
 
 // IPToContext resolves IP address to Peer context
 func (r *resolveRunc) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
-	node, err := r.gremlinClient.GetNode(g.G.V().Has("TID", nodeTID).Out("Runc.Hosts.IP", ipString))
+	node, err := r.gremlinClient.GetNode(g.G.V().Has("Runc.Hosts.IP", ipString).ShortestPathTo(g.Metadata("TID", nodeTID)))
 	if err != nil {
 		return nil, err
 	}
