@@ -1,4 +1,5 @@
 SRCS := \
+	account.go \
 	classify.go \
 	compress.go \
 	encode.go \
