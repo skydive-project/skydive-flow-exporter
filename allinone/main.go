@@ -18,9 +18,9 @@
 package main
 
 import (
-	"github.com/skydive-project/skydive/contrib/exporters/core"
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
-	secadvisor "github.com/skydive-project/skydive/contrib/exporters/secadvisor/mod"
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
+	"github.com/skydive-project/skydive-flow-exporter/core"
+	secadvisor "github.com/skydive-project/skydive-flow-exporter/secadvisor/pkg"
 )
 
 func main() {
