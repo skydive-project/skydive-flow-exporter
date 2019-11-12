@@ -14,16 +14,16 @@ TEST := \
 
 .PHONY: all
 all:
-	for i in $(BUILD); do $(MAKE) -C $$i; done
+	for i in $(BUILD); do $(MAKE) -C $$i || exit; done
 
 .PHONY: clean
 clean:
-	for i in $(BUILD); do $(MAKE) -C $$i clean; done
+	for i in $(BUILD); do $(MAKE) -C $$i clean || exit; done
 
 .PHONY: test
 test:
-	for i in $(TEST); do $(MAKE) -C $$i test; done
+	for i in $(TEST); do $(MAKE) -C $$i test || exit; done
 
 .PHONY: static
 static:
-	for i in $(STATIC); do $(MAKE) -C $$i static; done
+	for i in $(STATIC); do $(MAKE) -C $$i static || exit; done
