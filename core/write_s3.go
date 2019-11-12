@@ -47,9 +47,13 @@ func (s *writeS3) Write(dirname, filename, content, contentType, contentEncoding
 		Metadata:        metadata,
 	})
 
-	logging.GetLogger().Infof("Write %s result: %v", filename, err)
+	if err != nil {
+		logging.GetLogger().Errorf("During Write %s error: %v", filename, err)
+		return err
+	}
 
-	return err
+	logging.GetLogger().Infof("Wrote %s", filename)
+	return nil
 }
 
 // NewWriteS3 creates a new S3-compatible object storage client
