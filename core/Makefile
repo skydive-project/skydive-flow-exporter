@@ -17,3 +17,7 @@ SRCS := \
 .PHONY: all
 all:
 	go build $(SRCS)
+
+.PHONY: fmt
+fmt:
+	gofmt -w -s *.go

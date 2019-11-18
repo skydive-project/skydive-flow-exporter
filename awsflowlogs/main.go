@@ -18,8 +18,8 @@
 package main
 
 import (
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 func main() {
