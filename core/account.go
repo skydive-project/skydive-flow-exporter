@@ -29,11 +29,11 @@ type accountNone struct {
 }
 
 // Reset counters
-func (a *accountNone) Cleanup() {
+func (a *accountNone) Reset() {
 }
 
 // Add to counters
-func (a *accountNone) Account(bytes int64) {
+func (a *accountNone) Add(bytes int64) {
 }
 
 // NewAccountNone create a new accounter
