@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	g "github.com/skydive-project/skydive/gremlin"
 )

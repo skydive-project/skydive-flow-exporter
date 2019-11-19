@@ -19,7 +19,7 @@ package main
 
 import (
 	secadvisor "github.com/skydive-project/skydive-flow-exporter/secadvisor/pkg"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 func main() {

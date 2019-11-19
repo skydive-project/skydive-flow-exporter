@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/common"
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
 )
 
 type mangleLogStatus struct {
