@@ -9,6 +9,7 @@ SRCS := \
 	mangle.go \
 	store_buffered.go \
 	store_direct.go \
+	store_header.go \
 	subscriber.go \
 	transform.go \
 	write_s3.go \

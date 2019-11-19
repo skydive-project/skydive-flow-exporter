@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -51,6 +52,11 @@ type Classifier interface {
 // Filterer exposes the interface for tag based filtering
 type Filterer interface {
 	IsExcluded(tag Tag) bool
+}
+
+// StoreHeader produces the header fields in the flow collection object
+type StoreHeader interface {
+	AddStoreHeader(flows []interface{}, startTime time.Time, endTime time.Time) interface{}
 }
 
 // Encoder exposes the interface for encoding flows
@@ -92,6 +98,7 @@ var (
 	TransformerHandlers HandlersMap
 	ClassifierHandlers  HandlersMap
 	FiltererHandlers    HandlersMap
+	StoreHeaderHandlers HandlersMap
 	EncoderHandlers     HandlersMap
 	CompressorHandlers  HandlersMap
 	StorerHandlers      HandlersMap
@@ -131,6 +138,9 @@ func init() {
 	FiltererHandlers = make(HandlersMap)
 	FiltererHandlers.Register("subnet", NewFilterSubnet, true)
 
+	StoreHeaderHandlers = make(HandlersMap)
+	StoreHeaderHandlers.Register("none", NewStoreHeaderNone, true)
+
 	EncoderHandlers = make(HandlersMap)
 	EncoderHandlers.Register("json", NewEncodeJSON, true)
 	EncoderHandlers.Register("csv", NewEncodeCSV, false)
@@ -159,6 +169,7 @@ type Pipeline struct {
 	Transformer Transformer
 	Classifier  Classifier
 	Filterer    Filterer
+	StoreHeader StoreHeader
 	Encoder     Encoder
 	Compressor  Compressor
 	Storer      Storer
@@ -184,6 +195,11 @@ func NewPipeline(cfg *viper.Viper) (*Pipeline, error) {
 	}
 
 	filterer, err := FiltererHandlers.Init(cfg, "filter")
+	if err != nil {
+		return nil, err
+	}
+
+	storeHeader, err := StoreHeaderHandlers.Init(cfg, "storeheader")
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +234,7 @@ func NewPipeline(cfg *viper.Viper) (*Pipeline, error) {
 		Transformer: transformer.(Transformer),
 		Classifier:  classifier.(Classifier),
 		Filterer:    filterer.(Filterer),
+		StoreHeader: storeHeader.(StoreHeader),
 		Encoder:     encoder.(Encoder),
 		Compressor:  compressor.(Compressor),
 		Storer:      storer.(Storer),
