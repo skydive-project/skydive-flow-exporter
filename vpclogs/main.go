@@ -29,4 +29,5 @@ func main() {
 func init() {
 	core.TransformerHandlers.Register("vpclogs", vpc.NewTransform, false)
 	core.StoreHeaderHandlers.Register("vpclogs", vpc.NewStoreHeaderVpc, false)
+	core.ManglerHandlers.Register("action", vpc.NewAction, false)
 }

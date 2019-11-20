@@ -21,6 +21,12 @@ pipeline:
       # - other
   transform:
     type: vpclogs
+  # mangle:
+    # type: action
+  # action:
+    # tid1:
+    # tid2:
+    # reject_timeout: 5
   storeheader:
     type: vpclogs
     vpclogs:
