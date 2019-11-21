@@ -18,6 +18,7 @@
 package mod
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -53,7 +54,16 @@ func (l *localGremlinQueryHelper) GetNodes(query interface{}) ([]*graph.Node, er
 	}
 	nodes := make([]*graph.Node, 0, len(result))
 	for _, item := range result {
-		nodes = append(nodes, item.(*graph.Node))
+		switch item.(type) {
+		case *graph.Node:
+			nodes = append(nodes, item.(*graph.Node))
+		case []*graph.Node:
+			for _, i := range item.([]*graph.Node) {
+				nodes = append(nodes, i)
+			}
+		default:
+			return nil, fmt.Errorf("Unknown type %T of item", item.(type))
+		}
 	}
 	return nodes, nil
 }
