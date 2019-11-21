@@ -21,3 +21,6 @@ all:
 .PHONY: fmt
 fmt:
 	gofmt -w -s *.go
+
+.PHONY: clean
+clean:
