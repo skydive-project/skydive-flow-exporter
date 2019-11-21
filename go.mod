@@ -2,7 +2,7 @@ module github.com/skydive-project/skydive-flow-exporter
 
 require (
 	github.com/GehirnInc/crypt v0.0.0-20190301055215-6c0105aabd46 // indirect
-	github.com/IBM/ibm-cos-sdk-go v1.2.0
+	github.com/IBM/ibm-cos-sdk-go v1.3.0
 	github.com/cnf/structhash v0.0.0-20180104161610-62a607eb0224 // indirect
 	github.com/coreos/etcd v3.3.16+incompatible // indirect
 	github.com/fatih/structs v1.1.0 // indirect
