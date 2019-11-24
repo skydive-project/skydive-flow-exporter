@@ -15,12 +15,12 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"github.com/spf13/viper"
 
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 type encode struct {

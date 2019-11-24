@@ -15,14 +15,15 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
 	g "github.com/skydive-project/skydive/gremlin"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 // NewResolveVM creates a new name resolver

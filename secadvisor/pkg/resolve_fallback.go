@@ -15,7 +15,7 @@
  *
  */
 
-package mod
+package pkg
 
 type resolveFallback struct {
 	resolver Resolver
