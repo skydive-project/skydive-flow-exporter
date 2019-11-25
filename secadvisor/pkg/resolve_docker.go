@@ -37,8 +37,8 @@ type resolveDocker struct {
 	gremlinClient GremlinNodeGetter
 }
 
-// IPToName resolve IP address to Docker container name.
-func (r *resolveDocker) IPToName(ipString, nodeTID string) (string, error) {
+// IPToContext resolves IP address to Peer context
+func (r *resolveDocker) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
 	// Skydive analyzer monitoring a Docker installation will hold the
 	// following topology graph per each container:
 	//
@@ -77,23 +77,32 @@ func (r *resolveDocker) IPToName(ipString, nodeTID string) (string, error) {
 			In("Type", "netns").
 			Out("Type", "container"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	name, err := node.GetFieldString("Name")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return "0_0_" + name + "_0", nil
+	containerID, err := node.GetFieldString("Docker.ContainerID")
+	if err != nil {
+		return nil, err
+	}
+
+	podPeerContext, err := queryPodByContainerID(r.gremlinClient, "docker", containerID)
+	if err != nil {
+		// No pod information
+		return &PeerContext{
+			Type: PeerTypeContainer,
+			Name: name,
+		}, nil
+	}
+
+	return podPeerContext, nil
 }
 
 // TIDToType resolve tid to type
 func (r *resolveDocker) TIDToType(nodeTID string) (string, error) {
-	node, err := r.gremlinClient.GetNode(g.G.V().Has("TID", nodeTID))
-	if err != nil {
-		return "", err
-	}
-
-	return node.GetFieldString("Type")
+	return queryNodeType(r.gremlinClient, nodeTID)
 }

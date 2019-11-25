@@ -1,6 +1,7 @@
 package mod
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -8,25 +9,28 @@ func newTestResolveRunc(t *testing.T) Resolver {
 	return &resolveRunc{gremlinClient: newLocalGremlinQueryHelper(newRuncTopologyGraph(t))}
 }
 
-func TestResolveRuncShouldFindContainerName(t *testing.T) {
+func TestResolveRuncShouldFindContainerContext(t *testing.T) {
 	r := newTestResolveRunc(t)
-	expected := "0_0_my-container-name-5bbc557665-h66vq_0"
-	actual, err := r.IPToName("172.30.149.34", "ce2ed4fb-1340-57b1-796f-5d648665aed7")
-	if err != nil {
-		t.Fatalf("IPToName failed: %v", err)
+	expected := &PeerContext{
+		Type: "container",
+		Name: "my-container-name-5bbc557665-h66vq",
 	}
-	if actual != expected {
-		t.Errorf("Expected: %v, got: %v", expected, actual)
+	actual, err := r.IPToContext("172.30.149.34", "ce2ed4fb-1340-57b1-796f-5d648665aed7")
+	if err != nil {
+		t.Fatalf("IPToContext failed: %v", err)
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Expected: %+v, got: %+v", expected, actual)
 	}
 }
 
-func TestResolveRuncShouldNotFindNameOfNonExistingIP(t *testing.T) {
+func TestResolveRuncShouldNotFindContextOfNonExistingIP(t *testing.T) {
 	r := newTestResolveRunc(t)
-	actual, err := r.IPToName("11.22.33.44", "ce2ed4fb-1340-57b1-796f-5d648665aed7")
+	actual, err := r.IPToContext("11.22.33.44", "ce2ed4fb-1340-57b1-796f-5d648665aed7")
 	if err == nil {
 		t.Errorf("Expected error but got none")
 	}
-	if actual != "" {
+	if actual != nil {
 		t.Errorf("Expected empty response, got: %v", actual)
 	}
 }

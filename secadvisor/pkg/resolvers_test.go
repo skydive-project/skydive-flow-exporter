@@ -18,6 +18,7 @@
 package mod
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -51,9 +52,18 @@ func (l *localGremlinQueryHelper) GetNodes(query interface{}) ([]*graph.Node, er
 	if err != nil {
 		return nil, err
 	}
-	var nodes []*graph.Node
+	nodes := make([]*graph.Node, 0, len(result))
 	for _, item := range result {
-		nodes = append(nodes, item.(*graph.Node))
+		switch item.(type) {
+		case *graph.Node:
+			nodes = append(nodes, item.(*graph.Node))
+		case []*graph.Node:
+			for _, i := range item.([]*graph.Node) {
+				nodes = append(nodes, i)
+			}
+		default:
+			return nil, fmt.Errorf("Unknown type %T of item", item.(type))
+		}
 	}
 	return nodes, nil
 }
@@ -174,5 +184,149 @@ func newDockerTopologyGraph(t *testing.T) *graph.Graph {
 	g.Link(netnsNode, dockereth0Node, graph.Metadata{})
 	g.Link(netnsNode, containerNode, graph.Metadata{})
 
+	return g
+}
+
+func newKubernetesOnRuncTopologyGraph(t *testing.T) *graph.Graph {
+	g := newGraph(t)
+
+	netnsNode, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "netns",
+		"Manager": "runc",
+		"Name":    "3709cd6138c28d5b56ed85d8aa05de7db40ba729c09e1df96c99d4e0d4cb0203",
+		"Runtime": "runc",
+		"TID":     "c3687053-ba82-5ccc-4c43-73a297f55f47",
+	})
+	containerNode, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "container",
+		"Runtime": "runc",
+		"Manager": "runc",
+		"Name":    "8a32bc39ff9c6d8555fdc0fa3af7b61c14fd7ccd3865193a8b07ce7087ec106b",
+		"Runc": map[string]interface{}{
+			"ContainerID": "8a32bc39ff9c6d8555fdc0fa3af7b61c14fd7ccd3865193a8b07ce7087ec106b",
+			"Hosts": map[string]interface{}{
+				"IP":       "172.30.60.108",
+				"Hostname": "kubernetes-dashboard-7996b848f4-pmv4z",
+			},
+		},
+		"TID": "7763a2ac-77ea-5e8f-475d-3de12b6c740d",
+	})
+	g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "pod",
+		"Manager": "k8s",
+		"Name":    "kubernetes-dashboard-7996b848f4-pmv4z",
+		"K8s": map[string]interface{}{
+			"Extra": map[string]interface{}{
+				"ObjectMeta": map[string]interface{}{
+					"OwnerReferences": []interface{}{
+						map[string]interface{}{
+							"Kind": "ReplicaSet",
+							"Name": "kubernetes-dashboard-7996b848f4",
+						},
+					},
+				},
+				"Status": map[string]interface{}{
+					"ContainerStatuses": []interface{}{
+						map[string]interface{}{
+							"ContainerID": "containerd://8a32bc39ff9c6d8555fdc0fa3af7b61c14fd7ccd3865193a8b07ce7087ec106b",
+						},
+					},
+				},
+			},
+			"IP":        "172.30.60.108",
+			"Name":      "kubernetes-dashboard-7996b848f4-pmv4z",
+			"Namespace": "kube-system",
+		},
+	})
+
+	g.Link(netnsNode, containerNode, graph.Metadata{})
+
+	return g
+}
+
+func newKubernetesOnDockerTopologyGraph(t *testing.T) *graph.Graph {
+	g := newGraph(t)
+
+	dockereth0Node, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type": "veth",
+		"IPV4": []string{"172.17.0.5/16"},
+		"Name": "eth0",
+		"TID":  "460e53ed-2cc4-5116-69b0-f5fe754a31b2",
+	})
+	netnsNode, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "netns",
+		"Manager": "docker",
+		"Name":    "k8s_pinger-two_pinger-depl-867fbd4567-8fdwd_default_38b64484-ddd2-11e9-9c32-06615272ae54_0",
+		"TID":     "d4e62829-bfe5-5a0d-5676-8459f8428ac4",
+	})
+	containerNode, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "container",
+		"Name":    "k8s_pinger-two_pinger-depl-867fbd4567-8fdwd_default_38b64484-ddd2-11e9-9c32-06615272ae54_0",
+		"Manager": "docker",
+		"Docker": map[string]interface{}{
+			"ContainerID":   "c8be05f0616091df905d8aa409431ae4061e9af2881c6bc6ee3abb19b7aa1eb9",
+			"ContainerName": "k8s_pinger-two_pinger-depl-867fbd4567-8fdwd_default_38b64484-ddd2-11e9-9c32-06615272ae54_0",
+		},
+		"TID": "1062e3fa-927f-55bb-4b9d-b22be94fd22b",
+	})
+	g.NewNode(graph.GenID(), graph.Metadata{
+		"Type":    "pod",
+		"Manager": "k8s",
+		"Name":    "pinger-depl-867fbd4567-8fdwd",
+		"K8s": map[string]interface{}{
+			"Extra": map[string]interface{}{
+				"ObjectMeta": map[string]interface{}{
+					"OwnerReferences": []interface{}{
+						map[string]interface{}{
+							"Kind": "ReplicaSet",
+							"Name": "pinger-depl-867fbd4567",
+						},
+					},
+				},
+				"Status": map[string]interface{}{
+					"ContainerStatuses": []interface{}{
+						map[string]interface{}{
+							"ContainerID": "docker://28ee7186dc2ff973337680cdd16d987f010e34d56e236e70a465481b6693e05e",
+						},
+						map[string]interface{}{
+							"ContainerID": "docker://c8be05f0616091df905d8aa409431ae4061e9af2881c6bc6ee3abb19b7aa1eb9",
+						},
+					},
+				},
+			},
+			"IP":        "172.17.0.5",
+			"Name":      "pinger-depl-867fbd4567-8fdwd",
+			"Namespace": "default",
+		},
+	})
+
+	g.Link(netnsNode, dockereth0Node, graph.Metadata{})
+	g.Link(netnsNode, containerNode, graph.Metadata{})
+
+	return g
+}
+
+func newVMTopologyGraph(t *testing.T) *graph.Graph {
+	g := newGraph(t)
+	hostNode, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type": "host",
+		"Name": "my-host-name-1",
+		"TID":  "3ac60fae-bf77-5a60-548f-21d5663ffdeb",
+	})
+	eth0Node, _ := g.NewNode(graph.GenID(), graph.Metadata{
+		"Type": "device",
+		"TID":  "09dcdca2-4259-5df9-47fc-e4bed4eac0ed",
+		"RoutingTables": []interface{}{
+			map[string]interface{}{
+				"ID":  254,
+				"Src": nil,
+			},
+			map[string]interface{}{
+				"ID":  254,
+				"Src": "100.101.102.103",
+			},
+		},
+	})
+	g.Link(hostNode, eth0Node, graph.Metadata{})
 	return g
 }

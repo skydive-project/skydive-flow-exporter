@@ -32,15 +32,15 @@ func NewResolveMulti(resolvers ...Resolver) Resolver {
 	}
 }
 
-// IPToName resolve ip address to name
-func (rm *resolveMulti) IPToName(ipString, nodeTID string) (string, error) {
+// IPToContext resolves IP address to Peer context
+func (rm *resolveMulti) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
 	for _, r := range rm.resolvers {
-		if name, err := r.IPToName(ipString, nodeTID); err == nil {
-			return name, nil
+		if context, err := r.IPToContext(ipString, nodeTID); err == nil {
+			return context, nil
 		}
 	}
 
-	return "", common.ErrNotFound
+	return nil, common.ErrNotFound
 }
 
 // TIDToType resolve tid to type

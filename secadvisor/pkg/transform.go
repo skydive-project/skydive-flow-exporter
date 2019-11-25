@@ -47,7 +47,7 @@ func NewTransform(cfg *viper.Viper) (interface{}, error) {
 	}, nil
 }
 
-const version = "1.0.8"
+const version = "1.1.0"
 
 // SecurityAdvisorFlowLayer is the flow layer for a security advisor flow
 type SecurityAdvisorFlowLayer struct {
@@ -58,24 +58,54 @@ type SecurityAdvisorFlowLayer struct {
 	BName    string `json:"B_Name,omitempty"`
 }
 
+type PeerType string
+
+const (
+	// Peer is recognized as a Kubernetes pod
+	PeerTypePod PeerType = "pod"
+	// Peer is recognized as a Docker or Runc container but couldn't be associated to a pod
+	PeerTypeContainer PeerType = "container"
+	// Peer is recognized as a host
+	PeerTypeHost PeerType = "host"
+)
+
+// PeerContext holds information about a peer, such as conatiner or pod info
+type PeerContext struct {
+	// Type of peer (see PeerType)
+	Type PeerType `json:"Type,omitempty"`
+	// Name of the peer (for example: "namespace/pod-name")
+	Name string `json:"Name,omitempty"`
+	// Optional. Name of the set that owns this peer (for example:
+	// "ReplicaSet:namespace/replicaset-name")
+	Set string `json:"Set,omitempty"`
+}
+
+// SecurityAdvisorPeerContexts holds the optional context structures for the
+// two peers of the flow
+type SecurityAdvisorPeerContexts struct {
+	A *PeerContext `json:"A,omitempty"`
+	B *PeerContext `json:"B,omitempty"`
+}
+
 // SecurityAdvisorFlow represents a security advisor flow
 type SecurityAdvisorFlow struct {
-	UUID             string                    `json:"UUID,omitempty"`
-	LinkID           int64                     `json:"-"`
-	L3TrackingID     string                    `json:"-"`
-	LayersPath       string                    `json:"LayersPath,omitempty"`
-	Version          string                    `json:"Version,omitempty"`
-	Status           string                    `json:"Status,omitempty"`
-	FinishType       string                    `json:"FinishType,omitempty"`
-	Network          *SecurityAdvisorFlowLayer `json:"Network,omitempty"`
-	Transport        *SecurityAdvisorFlowLayer `json:"Transport,omitempty"`
-	LastUpdateMetric *flow.FlowMetric          `json:"LastUpdateMetric,omitempty"`
-	Metric           *flow.FlowMetric          `json:"Metric,omitempty"`
-	Start            int64                     `json:"Start"`
-	Last             int64                     `json:"Last"`
-	UpdateCount      int64                     `json:"UpdateCount"`
-	NodeType         string                    `json:"NodeType,omitempty"`
-	LogStatus        string                    `json:"LogStatus,omitempty"`
+	UUID             string                       `json:"UUID,omitempty"`
+	LinkID           int64                        `json:"-"`
+	L3TrackingID     string                       `json:"-"`
+	LayersPath       string                       `json:"LayersPath,omitempty"`
+	Version          string                       `json:"Version,omitempty"`
+	Status           string                       `json:"Status,omitempty"`
+	FinishType       string                       `json:"FinishType,omitempty"`
+	Network          *SecurityAdvisorFlowLayer    `json:"Network,omitempty"`
+	Transport        *SecurityAdvisorFlowLayer    `json:"Transport,omitempty"`
+	Context          *SecurityAdvisorPeerContexts `json:"Context,omitempty"`
+	LastUpdateMetric *flow.FlowMetric             `json:"LastUpdateMetric,omitempty"`
+	Metric           *flow.FlowMetric             `json:"Metric,omitempty"`
+	Start            int64                        `json:"Start"`
+	Last             int64                        `json:"Last"`
+	UpdateCount      int64                        `json:"UpdateCount"`
+	NodeType         string                       `json:"NodeType,omitempty"`
+	LogStatus        string                       `json:"LogStatus,omitempty"`
 }
 
 // SecurityAdvisorFlowTransformer is a custom transformer for flows
@@ -129,13 +159,24 @@ func (ft *securityAdvisorFlowTransformer) getFinishType(f *flow.Flow) string {
 	return ""
 }
 
-func (ft *securityAdvisorFlowTransformer) getNetwork(f *flow.Flow) *SecurityAdvisorFlowLayer {
+func extractLegacyName(context *PeerContext) string {
+	if context != nil && context.Type == PeerTypePod && context.Name != "" {
+		return "0_0_" + context.Name + "_0"
+	}
+	return ""
+}
+
+func (ft *securityAdvisorFlowTransformer) getNetwork(f *flow.Flow, contexts *SecurityAdvisorPeerContexts) *SecurityAdvisorFlowLayer {
 	if f.Network == nil {
 		return nil
 	}
 
-	aName, _ := ft.resolver.IPToName(f.Network.A, f.NodeTID)
-	bName, _ := ft.resolver.IPToName(f.Network.B, f.NodeTID)
+	aName := ""
+	bName := ""
+	if contexts != nil {
+		aName = extractLegacyName(contexts.A)
+		bName = extractLegacyName(contexts.B)
+	}
 
 	return &SecurityAdvisorFlowLayer{
 		Protocol: f.Network.Protocol.String(),
@@ -143,6 +184,24 @@ func (ft *securityAdvisorFlowTransformer) getNetwork(f *flow.Flow) *SecurityAdvi
 		B:        f.Network.B,
 		AName:    aName,
 		BName:    bName,
+	}
+}
+
+func (ft *securityAdvisorFlowTransformer) getPeerContexts(f *flow.Flow) *SecurityAdvisorPeerContexts {
+	if f.Network == nil {
+		return nil
+	}
+
+	aContext, _ := ft.resolver.IPToContext(f.Network.A, f.NodeTID)
+	bContext, _ := ft.resolver.IPToContext(f.Network.B, f.NodeTID)
+
+	if aContext == nil && bContext == nil {
+		return nil
+	}
+
+	return &SecurityAdvisorPeerContexts{
+		A: aContext,
+		B: bContext,
 	}
 }
 
@@ -178,6 +237,8 @@ func (ft *securityAdvisorFlowTransformer) Transform(f *flow.Flow) interface{} {
 
 	nodeType, _ := ft.resolver.TIDToType(f.NodeTID)
 
+	peerContexts := ft.getPeerContexts(f)
+
 	return &SecurityAdvisorFlow{
 		UUID:             f.UUID,
 		LinkID:           ft.getLinkID(f),
@@ -186,7 +247,8 @@ func (ft *securityAdvisorFlowTransformer) Transform(f *flow.Flow) interface{} {
 		Version:          version,
 		Status:           status,
 		FinishType:       ft.getFinishType(f),
-		Network:          ft.getNetwork(f),
+		Network:          ft.getNetwork(f, peerContexts),
+		Context:          peerContexts,
 		Transport:        ft.getTransport(f),
 		LastUpdateMetric: f.LastUpdateMetric,
 		Metric:           f.Metric,

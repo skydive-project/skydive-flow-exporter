@@ -45,27 +45,36 @@ type resolveRunc struct {
 	gremlinClient GremlinNodeGetter
 }
 
-// IPToName resolve ip to name
-func (r *resolveRunc) IPToName(ipString, nodeTID string) (string, error) {
-	node, err := r.gremlinClient.GetNode(g.G.V().Has("TID", nodeTID).Out("Runc.Hosts.IP", ipString))
+// IPToContext resolves IP address to Peer context
+func (r *resolveRunc) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
+	node, err := r.gremlinClient.GetNode(g.G.V().Has("Runc.Hosts.IP", ipString).ShortestPathTo(g.Metadata("TID", nodeTID)))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	name, err := node.GetFieldString("Runc.Hosts.Hostname")
 	if err != nil {
-		return "", err
+		name = ""
 	}
 
-	return "0_0_" + name + "_0", nil
+	containerID, err := node.GetFieldString("Runc.ContainerID")
+	if err != nil {
+		containerID = ""
+	}
+
+	podPeerContext, err := queryPodByContainerID(r.gremlinClient, "containerd", containerID)
+	if err != nil {
+		// No pod information
+		return &PeerContext{
+			Type: PeerTypeContainer,
+			Name: name,
+		}, nil
+	}
+
+	return podPeerContext, nil
 }
 
 // TIDToType resolve tid to type
 func (r *resolveRunc) TIDToType(nodeTID string) (string, error) {
-	node, err := r.gremlinClient.GetNode(g.G.V().Has("TID", nodeTID))
-	if err != nil {
-		return "", err
-	}
-
-	return node.GetFieldString("Type")
+	return queryNodeType(r.gremlinClient, nodeTID)
 }

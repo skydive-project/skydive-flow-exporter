@@ -35,23 +35,28 @@ func NewResolveVM(cfg *viper.Viper) Resolver {
 }
 
 type resolveVM struct {
-	gremlinClient *client.GremlinQueryHelper
+	gremlinClient GremlinNodeGetter
 }
 
-// IPToName resolve ip to name
-func (r *resolveVM) IPToName(ipString, nodeTID string) (string, error) {
+// IPToContext resolves IP address to Peer context
+func (r *resolveVM) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
 	node, err := r.gremlinClient.GetNode(g.G.V().Has("RoutingTables.Src", ipString).In().Has("Type", "host"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return node.GetFieldString("Name")
+
+	name, err := node.GetFieldString("Name")
+	if err != nil {
+		return nil, err
+	}
+
+	return &PeerContext{
+		Type: PeerTypeHost,
+		Name: name,
+	}, nil
 }
 
 // TIDToType resolve tid to type
 func (r *resolveVM) TIDToType(nodeTID string) (string, error) {
-	node, err := r.gremlinClient.GetNode(g.G.V().Has("TID", nodeTID))
-	if err != nil {
-		return "", err
-	}
-	return node.GetFieldString("Type")
+	return queryNodeType(r.gremlinClient, nodeTID)
 }

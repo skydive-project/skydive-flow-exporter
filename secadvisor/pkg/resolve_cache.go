@@ -28,44 +28,50 @@ import (
 
 // Resolver resolves values for the transformer
 type Resolver interface {
-	IPToName(ipString, nodeTID string) (string, error)
+	IPToContext(ipString, nodeTID string) (*PeerContext, error)
 	TIDToType(nodeTID string) (string, error)
 }
 
 type resolveCache struct {
-	resolver  Resolver
-	nameCache *cache.Cache
-	typeCache *cache.Cache
+	resolver     Resolver
+	contextCache *cache.Cache
+	typeCache    *cache.Cache
 }
 
 // NewResolveCache creates a new name resolver
 func NewResolveCache(resolver Resolver) Resolver {
 	return &resolveCache{
-		resolver:  resolver,
-		nameCache: cache.New(5*time.Minute, 10*time.Minute),
-		typeCache: cache.New(5*time.Minute, 10*time.Minute),
+		resolver:     resolver,
+		contextCache: cache.New(5*time.Minute, 10*time.Minute),
+		typeCache:    cache.New(5*time.Minute, 10*time.Minute),
 	}
 }
 
-// IPToName resolve ip address to name
-func (rc *resolveCache) IPToName(ipString, nodeTID string) (string, error) {
-	cacheKey := ipString + "," + nodeTID
-	name, ok := rc.nameCache.Get(cacheKey)
-
-	if !ok {
-		var err error
-		name, err = rc.resolver.IPToName(ipString, nodeTID)
-		if err != nil {
-			if err != common.ErrNotFound {
-				logging.GetLogger().Warningf("Failed to query container name for IP '%s': %s", ipString, err)
-			}
-			return "", err
-		}
-
-		rc.nameCache.Set(cacheKey, name, cache.DefaultExpiration)
+// IPToContext resolves IP address to Peer context
+func (rc *resolveCache) IPToContext(ipString, nodeTID string) (*PeerContext, error) {
+	if ipString == "" {
+		return nil, nil
 	}
 
-	return name.(string), nil
+	cacheKey := ipString + "," + nodeTID
+	cachedContext, ok := rc.contextCache.Get(cacheKey)
+	if ok {
+		return cachedContext.(*PeerContext), nil
+	}
+
+	context, err := rc.resolver.IPToContext(ipString, nodeTID)
+	switch err {
+	case nil:
+		rc.contextCache.Set(cacheKey, context, cache.DefaultExpiration)
+		return context, nil
+	case common.ErrNotFound:
+		rc.contextCache.Set(cacheKey, nil, cache.DefaultExpiration)
+		return nil, nil
+	default:
+		logging.GetLogger().Warningf("Failed to query container context for IP '%s' in nodeTID '%s': %s",
+			ipString, nodeTID, err)
+		return nil, err
+	}
 }
 
 // TIDToType resolve tid to type
