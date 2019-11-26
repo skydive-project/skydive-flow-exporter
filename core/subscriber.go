@@ -25,13 +25,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
 	shttp "github.com/skydive-project/skydive/http"
 	"github.com/skydive-project/skydive/logging"
 	"github.com/skydive-project/skydive/websocket"
+	"github.com/spf13/viper"
 )
 
 // CfgAuthOpts creates the auth options form configuration

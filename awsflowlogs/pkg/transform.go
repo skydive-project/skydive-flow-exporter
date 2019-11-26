@@ -20,9 +20,8 @@ package mod
 import (
 	"strconv"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/flow"
+	"github.com/spf13/viper"
 )
 
 const (

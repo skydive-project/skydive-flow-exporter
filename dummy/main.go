@@ -18,7 +18,7 @@
 package main
 
 import (
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 func main() {

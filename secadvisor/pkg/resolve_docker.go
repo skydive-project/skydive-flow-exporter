@@ -18,11 +18,11 @@
 package mod
 
 import (
+	"github.com/skydive-project/skydive/api/client"
+	g "github.com/skydive-project/skydive/gremlin"
 	"github.com/spf13/viper"
 
-	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
-	g "github.com/skydive-project/skydive/gremlin"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 // NewResolveDocker creates a new name resolver

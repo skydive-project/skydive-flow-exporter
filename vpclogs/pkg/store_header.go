@@ -20,9 +20,8 @@ package mod
 import (
 	"time"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
 )
 
 const version = "0.0.1"

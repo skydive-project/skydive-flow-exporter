@@ -41,11 +41,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
+
 	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
@@ -54,9 +54,9 @@ const timeoutPeriodCleanup = 20
 const defaultRejectTimeout = 5
 
 type combinedFlowInfo struct {
-	flows          map[string]*VpclogsFlow  // list of flows received for this TrackingID, indexed by UUID
+	flows          map[string]*VpclogsFlow // list of flows received for this TrackingID, indexed by UUID
 	flowsPrev      map[string]*VpclogsFlow
-	flowReported   *VpclogsFlow             // combined flow reported to user
+	flowReported   *VpclogsFlow // combined flow reported to user
 	metricReported *flow.FlowMetric
 	lastReportTime int64
 }
@@ -210,7 +210,6 @@ func (t *Action) combineFlows(f *combinedFlowInfo) *VpclogsFlow {
 	logging.GetLogger().Debugf("combineFlows: flow1 = %s", flow1.Flow)
 	logging.GetLogger().Debugf("combineFlows: flow2 = %s", flow2.Flow)
 
-
 	// perform shallow copy of flow and then update some fields
 	newF := *flow1
 	// verify we received flows from each of the 2 specified interfaces
@@ -307,7 +306,7 @@ func (t *Action) oneFlow(f *combinedFlowInfo) *VpclogsFlow {
 		// if the UUIDs match, check the timeout
 		if k1 == k2 {
 			// check for timeout
-			if secs > f.lastReportTime + t.rejectTimeout {
+			if secs > f.lastReportTime+t.rejectTimeout {
 				f.flows[k1].SetAction(VpcActionReject)
 				f.flowReported = f.flows[k1]
 				f.metricReported = f.flows[k1].Metric
@@ -343,7 +342,7 @@ func (t *Action) zeroFlows(f *combinedFlowInfo) *VpclogsFlow {
 	if len(f.flowsPrev) == 1 {
 		secs := time.Now().Unix()
 		for _, fl := range f.flowsPrev {
-			if secs > f.lastReportTime + t.rejectTimeout {
+			if secs > f.lastReportTime+t.rejectTimeout {
 				fl.SetAction(VpcActionReject)
 				f.flowReported = fl
 				f.metricReported = fl.Metric

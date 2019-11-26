@@ -21,11 +21,11 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/skydive-project/skydive/flow"
 	"github.com/spf13/viper"
 
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
-	"github.com/skydive-project/skydive/flow"
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 var logStatusConfig = []byte(`---

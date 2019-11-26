@@ -22,12 +22,12 @@ import (
 	"time"
 
 	cache "github.com/pmylund/go-cache"
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/api/client"
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/gremlin"
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
+
 	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 

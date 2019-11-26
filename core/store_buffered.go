@@ -24,11 +24,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/viper"
-
 	"github.com/IBM/ibm-cos-sdk-go/aws"
-
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
 )
 
 // stream is a series of consecutive persisted objects

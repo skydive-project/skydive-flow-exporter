@@ -22,11 +22,10 @@ import (
 	"time"
 
 	cache "github.com/pmylund/go-cache"
-
+	"github.com/skydive-project/skydive/flow"
 	"github.com/spf13/viper"
 
-	"github.com/skydive-project/skydive/contrib/exporters/core"
-	"github.com/skydive-project/skydive/flow"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 // NewTransform creates a new flow transformer based on a name string

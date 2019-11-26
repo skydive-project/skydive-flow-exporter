@@ -22,10 +22,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
 )
 
 // Tag represents the flow classification

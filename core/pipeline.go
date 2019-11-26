@@ -24,11 +24,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/logging"
 	ws "github.com/skydive-project/skydive/websocket"
+	"github.com/spf13/viper"
 )
 
 // CfgRoot configuration root path

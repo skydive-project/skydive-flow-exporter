@@ -18,9 +18,8 @@
 package core
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
 )
 
 type storeDirect struct {

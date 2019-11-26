@@ -23,10 +23,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/skydive-project/skydive/logging"
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
-	"github.com/skydive-project/skydive/logging"
 )
 
 func now() int64 {

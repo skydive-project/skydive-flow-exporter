@@ -20,15 +20,13 @@ package core
 import (
 	"strings"
 
-	"github.com/spf13/viper"
-
 	"github.com/IBM/ibm-cos-sdk-go/aws"
 	"github.com/IBM/ibm-cos-sdk-go/aws/credentials"
 	"github.com/IBM/ibm-cos-sdk-go/aws/credentials/ibmiam"
 	"github.com/IBM/ibm-cos-sdk-go/aws/session"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
-
 	"github.com/skydive-project/skydive/logging"
+	"github.com/spf13/viper"
 )
 
 type writeS3 struct {

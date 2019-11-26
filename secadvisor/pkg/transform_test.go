@@ -23,10 +23,10 @@ import (
 	"time"
 
 	cache "github.com/pmylund/go-cache"
-
 	"github.com/skydive-project/skydive/common"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
 	"github.com/skydive-project/skydive/flow"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 type fakeResolver struct {
