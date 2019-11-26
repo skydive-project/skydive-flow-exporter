@@ -62,7 +62,7 @@ func (l *localGremlinQueryHelper) GetNodes(query interface{}) ([]*graph.Node, er
 				nodes = append(nodes, i)
 			}
 		default:
-			return nil, fmt.Errorf("Unknown type %T of item", item.(type))
+			return nil, fmt.Errorf("Unknown type %T of item", item)
 		}
 	}
 	return nodes, nil
