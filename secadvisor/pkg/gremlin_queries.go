@@ -15,7 +15,7 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"github.com/skydive-project/skydive/graffiti/graph"

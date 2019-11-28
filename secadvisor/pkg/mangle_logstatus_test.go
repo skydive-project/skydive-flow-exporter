@@ -15,7 +15,7 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"bytes"
@@ -23,8 +23,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
+	"github.com/skydive-project/skydive-flow-exporter/core"
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
 	"github.com/skydive-project/skydive/flow"
 )
 

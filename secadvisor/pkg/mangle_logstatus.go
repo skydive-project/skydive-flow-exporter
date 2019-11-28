@@ -15,15 +15,15 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"time"
 
 	"github.com/spf13/viper"
 
+	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
 	"github.com/skydive-project/skydive/common"
-	awsflowlogs "github.com/skydive-project/skydive/contrib/exporters/awsflowlogs/mod"
 )
 
 type mangleLogStatus struct {
