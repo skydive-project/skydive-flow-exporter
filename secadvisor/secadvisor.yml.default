@@ -32,6 +32,8 @@ pipeline:
     type: secadvisor
     secadvisor:
       exclude_started_flows: true
+      # extend:
+        # - AA_Name=G.V().Has('RoutingTables.Src','{{.Network.A}}').Values('Host')
   encode:
     type: secadvisor
     json:
