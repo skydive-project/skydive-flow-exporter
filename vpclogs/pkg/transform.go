@@ -15,7 +15,7 @@
  *
  */
 
-package mod
+package pkg
 
 import (
 	"strings"

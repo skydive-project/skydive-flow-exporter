@@ -35,7 +35,7 @@
  * We therefore report the lesser of the numbers (bytes, packets, time) recorded in the 2 measurements of the same flow.
  */
 
-package mod
+package pkg
 
 import (
 	"fmt"
