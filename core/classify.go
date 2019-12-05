@@ -90,10 +90,17 @@ func (fc *classify) isClusterIP(ip string) (bool, error) {
 	return false, nil
 }
 
-// NewClassifySubnet returns a new classify, based on the given cluster
-// net masks
+// NewClassifySubnet returns a new classify based on cluster net masks
+// from the global configuration
 func NewClassifySubnet(cfg *viper.Viper) (interface{}, error) {
 	clusterNetMasks := cfg.GetStringSlice(CfgRoot + "classify.cluster_net_masks")
+	return NewClassifySubnetFromList(clusterNetMasks)
+}
+
+// NewClassifySubnetFromList returns a new classify based on the given
+// cluster net masks
+func NewClassifySubnetFromList(clusterNetMasks []string) (interface{}, error) {
+	logging.GetLogger().Infof("Cluster net masks: %v", clusterNetMasks)
 	parsedNetMasks := make([]*net.IPNet, 0, len(clusterNetMasks))
 	for _, netMask := range clusterNetMasks {
 		_, sa, err := net.ParseCIDR(netMask)
