@@ -19,9 +19,7 @@ SRCS := \
 all:
 	go build $(SRCS)
 
-.PHONY: fmt
-fmt:
-	gofmt -w -s *.go
-
 .PHONY: clean
-clean:
+clean: ;
+
+include ../Makefile.dev
