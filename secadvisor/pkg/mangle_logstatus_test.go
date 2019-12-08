@@ -23,8 +23,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/skydive-project/skydive-flow-exporter/core"
 	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
+	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/flow"
 )
 
