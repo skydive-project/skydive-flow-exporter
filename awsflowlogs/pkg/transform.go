@@ -23,10 +23,11 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/flow"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 const (
-	version   = 3
 	accountID = "12345678"
 )
 
@@ -58,9 +59,7 @@ const (
 	TypeEFA  = "EFA" // Elastic Fabric Adapter.
 )
 
-// record struct is based on
-// https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)
-type record struct {
+type recordV2 struct {
 	// The VPC Flow Logs version.
 	Version int `csv:"version"`
 	// The AWS account ID for the flow log.
@@ -94,6 +93,11 @@ type record struct {
 	// The logging status: OK if logged normally; NODATA if no data during
 	// cature window; SKIPDATA due to possible cap of traffic.
 	LogStatus LogStatus `csv:"log-status"`
+}
+
+type recordV3 struct {
+	// extends on v2 fields
+	recordV2
 	// The ID of the VPC that contains the network interface for which the
 	// traffic is recorded.
 	VpcID string `csv:"vpc-id"`
@@ -116,11 +120,14 @@ type record struct {
 }
 
 type transform struct {
+	version int
 }
 
 // NewTransform creates a new transformer
 func NewTransform(cfg *viper.Viper) (interface{}, error) {
-	return &transform{}, nil
+	return &transform{
+		version: cfg.GetInt(core.CfgRoot + "transform.awsflowlogs.version"),
+	}, nil
 }
 
 func getProtocol(f *flow.Flow) int {
@@ -174,8 +181,7 @@ func getType(f *flow.Flow) string {
 
 // Transform transforms a flow before being stored
 func (t *transform) Transform(f *flow.Flow) interface{} {
-	return &record{
-		Version:     version,
+	v2 := &recordV2{
 		AccountID:   accountID,
 		InterfaceID: strconv.FormatInt(f.Link.ID, 10),
 		SrcAddr:     getNetworkA(f),
@@ -189,13 +195,25 @@ func (t *transform) Transform(f *flow.Flow) interface{} {
 		End:         int64(f.Last / 1000),
 		Action:      ActionAccept,
 		LogStatus:   LogStatusOk,
-		VpcID:       "",
-		SubnetID:    "",
-		InstanceID:  "",
-		TCPFlags:    0, // TODO: extract from last packet
-		Type:        getType(f),
-		PktSrcAddr:  "", // TODO: get outer flow via f.ParentUID
-		PktDstAddr:  "", // TODO: get outer flow via f.ParentUID
+	}
 
+	v3 := &recordV3{
+		recordV2:   *v2,
+		VpcID:      "",
+		SubnetID:   "",
+		InstanceID: "",
+		TCPFlags:   0, // TODO: extract from last packet
+		Type:       getType(f),
+		PktSrcAddr: "", // TODO: get outer flow via f.ParentUID
+		PktDstAddr: "", // TODO: get outer flow via f.ParentUID
+	}
+
+	switch t.version {
+	case 3:
+		v3.Version = 3
+		return v3
+	default:
+		v2.Version = 2
+		return v2
 	}
 }

@@ -18,10 +18,7 @@
 package pkg
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/spf13/viper"
 
 	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
 	"github.com/skydive-project/skydive-flow-exporter/core"
@@ -34,18 +31,8 @@ pipeline:
     type: logstatus
 `)
 
-func ConfigFromJSON(t *testing.T, content []byte) *viper.Viper {
-	cfg := viper.New()
-	cfg.SetConfigType("yaml")
-	r := bytes.NewBuffer(content)
-	if err := cfg.ReadConfig(r); err != nil {
-		t.Fatalf("Failed to read config: %s", err)
-	}
-	return cfg
-}
-
 func getMangleLogStatus(t *testing.T) core.Mangler {
-	cfg := ConfigFromJSON(t, logStatusConfig)
+	cfg := core.ConfigFromJSON(t, logStatusConfig)
 	mangler, err := NewMangleLogStatus(cfg)
 	if err != nil {
 		t.Fatalf("Mangle creation returned unexpected error: %s", err)

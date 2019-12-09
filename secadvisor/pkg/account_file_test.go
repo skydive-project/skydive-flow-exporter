@@ -19,6 +19,8 @@ package pkg
 
 import (
 	"testing"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 var accountFileConfig = []byte(`---
@@ -30,7 +32,7 @@ pipeline:
 `)
 
 func getAccountFile(t *testing.T) *accountFile {
-	cfg := ConfigFromJSON(t, accountFileConfig)
+	cfg := core.ConfigFromJSON(t, accountFileConfig)
 	accounter, err := NewAccountFile(cfg)
 	if err != nil {
 		t.Fatalf("Account creation returned unexpected error: %s", err)
