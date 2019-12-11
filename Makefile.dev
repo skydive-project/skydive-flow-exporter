@@ -1,0 +1,22 @@
+VERBOSE_FLAGS?=-v
+VERBOSE?=true
+ifeq ($(VERBOSE), false)
+  VERBOSE_FLAGS:=
+endif
+TIMEOUT?=1m
+
+.PHONY: test
+test: $(TESTS)
+	go test $(VERBOSE_FLAGS) -timeout ${TIMEOUT} ./...
+
+.PHONY: fmt-fix
+fmt-fix:
+	@echo "+ $@"
+	gofmt -w -s .
+
+.PHONY: fmt-check
+fmt-check:
+	@echo "+ $@"
+	@badfiles="$$(gofmt -l -s .)" && \
+		test -z "$$badfiles" || \
+		(echo "$$badfiles" && echo "+ please format Go code with 'make fmt-fix'" && /bin/false)
