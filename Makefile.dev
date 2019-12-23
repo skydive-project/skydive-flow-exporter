@@ -6,7 +6,7 @@ endif
 TIMEOUT?=1m
 
 .PHONY: test
-test: $(TESTS)
+test:
 	go test $(VERBOSE_FLAGS) -timeout ${TIMEOUT} ./...
 
 .PHONY: fmt-fix
