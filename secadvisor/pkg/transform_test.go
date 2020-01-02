@@ -28,6 +28,8 @@ import (
 	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/flow"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 const testConfig = `---
@@ -103,20 +105,6 @@ func getTestTransformer() *securityAdvisorFlowTransformer {
 	}
 }
 
-func assertEqual(t *testing.T, expected, actual interface{}) {
-	t.Helper()
-	if expected != actual {
-		t.Fatalf("Equal assertion failed: (expected: %T:%#v, actual: %T:%#v)", expected, expected, actual, actual)
-	}
-}
-
-func assertEqualInt64(t *testing.T, expected, actual int64) {
-	t.Helper()
-	if expected != actual {
-		t.Fatalf("Equal assertion failed: (expected: %v, actual: %v)", expected, actual)
-	}
-}
-
 func assertEqualExtend(t *testing.T, expected, actual interface{}, suffix string) {
 	actual2 := actual.(map[string]interface{})
 	if expected != actual2[suffix] {
@@ -168,25 +156,25 @@ func Test_Transform_basic_flow(t *testing.T) {
 	f := getFlow()
 	transformer.extendGremlin.populateExtendGremlin(f, transformer)
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, version, secAdvFlow.Version)
-	assertEqualInt64(t, 0, secAdvFlow.UpdateCount)
-	assertEqual(t, "STARTED", secAdvFlow.Status)
-	assertEqualInt64(t, 1546338030000, secAdvFlow.Start)
-	assertEqualInt64(t, 1546338030000, secAdvFlow.Last)
-	assertEqual(t, "fake_node_type", secAdvFlow.NodeType)
+	core.AssertEqual(t, version, secAdvFlow.Version)
+	core.AssertEqualInt64(t, 0, secAdvFlow.UpdateCount)
+	core.AssertEqual(t, "STARTED", secAdvFlow.Status)
+	core.AssertEqualInt64(t, 1546338030000, secAdvFlow.Start)
+	core.AssertEqualInt64(t, 1546338030000, secAdvFlow.Last)
+	core.AssertEqual(t, "fake_node_type", secAdvFlow.NodeType)
 	// Test legacy container names
-	assertEqual(t, "0_0_one-namespace/fake-pod-one_0", secAdvFlow.Network.AName)
-	assertEqual(t, "0_0_two-namespace/fake-pod-two_0", secAdvFlow.Network.BName)
+	core.AssertEqual(t, "0_0_one-namespace/fake-pod-one_0", secAdvFlow.Network.AName)
+	core.AssertEqual(t, "0_0_two-namespace/fake-pod-two_0", secAdvFlow.Network.BName)
 	// Test container context
-	assertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
-	assertEqual(t, "one-namespace/fake-pod-one", secAdvFlow.Context.A.Name)
-	assertEqual(t, "one-namespace/replica-set-one", secAdvFlow.Context.A.Set)
-	assertEqual(t, PeerTypePod, secAdvFlow.Context.B.Type)
-	assertEqual(t, "two-namespace/fake-pod-two", secAdvFlow.Context.B.Name)
-	assertEqual(t, "two-namespace/replica-set-two", secAdvFlow.Context.B.Set)
+	core.AssertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
+	core.AssertEqual(t, "one-namespace/fake-pod-one", secAdvFlow.Context.A.Name)
+	core.AssertEqual(t, "one-namespace/replica-set-one", secAdvFlow.Context.A.Set)
+	core.AssertEqual(t, PeerTypePod, secAdvFlow.Context.B.Type)
+	core.AssertEqual(t, "two-namespace/fake-pod-two", secAdvFlow.Context.B.Name)
+	core.AssertEqual(t, "two-namespace/replica-set-two", secAdvFlow.Context.B.Set)
 	// Test that transport layer ports are encoded as strings
-	assertEqual(t, "47838", secAdvFlow.Transport.A)
-	assertEqual(t, "80", secAdvFlow.Transport.B)
+	core.AssertEqual(t, "47838", secAdvFlow.Transport.A)
+	core.AssertEqual(t, "80", secAdvFlow.Transport.B)
 }
 
 func Test_Transform_UpdateCount_increses(t *testing.T) {
@@ -195,7 +183,7 @@ func Test_Transform_UpdateCount_increses(t *testing.T) {
 	transformer.extendGremlin.populateExtendGremlin(f, transformer)
 	for i := int64(0); i < 10; i++ {
 		secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
-		assertEqualInt64(t, i, secAdvFlow.UpdateCount)
+		core.AssertEqualInt64(t, i, secAdvFlow.UpdateCount)
 	}
 }
 
@@ -204,12 +192,12 @@ func Test_Transform_Status_updates(t *testing.T) {
 	f := getFlow()
 	transformer.extendGremlin.populateExtendGremlin(f, transformer)
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, "STARTED", secAdvFlow.Status)
+	core.AssertEqual(t, "STARTED", secAdvFlow.Status)
 	secAdvFlow = transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, "UPDATED", secAdvFlow.Status)
+	core.AssertEqual(t, "UPDATED", secAdvFlow.Status)
 	f.FinishType = flow.FlowFinishType_TCP_FIN
 	secAdvFlow = transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, "ENDED", secAdvFlow.Status)
+	core.AssertEqual(t, "ENDED", secAdvFlow.Status)
 }
 
 func getTestTransformerWithLocalTopology(t *testing.T) *securityAdvisorFlowTransformer {
@@ -271,14 +259,14 @@ func TestTransformShouldResolveRuncContainerContext(t *testing.T) {
 	f := getRuncFlow()
 	transformer.extendGremlin.populateExtendGremlin(f, transformer)
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
-	assertEqual(t, "netns", secAdvFlow.NodeType)
-	assertEqual(t, "0_0_kube-system/kubernetes-dashboard-7996b848f4-pmv4z_0", secAdvFlow.Network.AName) // Legacy field
-	assertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
-	assertEqual(t, "kube-system/kubernetes-dashboard-7996b848f4-pmv4z", secAdvFlow.Context.A.Name)
-	assertEqual(t, "ReplicaSet:kube-system/kubernetes-dashboard-7996b848f4", secAdvFlow.Context.A.Set)
+	core.AssertEqual(t, "netns", secAdvFlow.NodeType)
+	core.AssertEqual(t, "0_0_kube-system/kubernetes-dashboard-7996b848f4-pmv4z_0", secAdvFlow.Network.AName) // Legacy field
+	core.AssertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
+	core.AssertEqual(t, "kube-system/kubernetes-dashboard-7996b848f4-pmv4z", secAdvFlow.Context.A.Name)
+	core.AssertEqual(t, "ReplicaSet:kube-system/kubernetes-dashboard-7996b848f4", secAdvFlow.Context.A.Set)
 
 	// Name should be blank for IPs that are not pods
-	assertEqual(t, "", secAdvFlow.Network.BName)
+	core.AssertEqual(t, "", secAdvFlow.Network.BName)
 	if secAdvFlow.Context.B != nil {
 		t.Fatal("Expected Context.B to be nil")
 	}
