@@ -51,8 +51,8 @@ func FindClusterNodesIPs(gremlinClient GremlinNodeGetter) ([]string, error) {
 	return ips, nil
 }
 
-// Extract the first ExternalIP found, or, if none exists, the InternalIP
-// found; otherwise returns an empty string
+// extractNodeIP extracts the first ExternalIP found, or, if none exists, the
+// InternalIP found; otherwise returns an empty string
 func extractNodeIP(node *graph.Node) (string, error) {
 	addressesObj, err := node.GetField("K8s.Extra.Status.Addresses")
 	if err != nil {
