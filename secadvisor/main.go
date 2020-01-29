@@ -27,6 +27,7 @@ func main() {
 }
 
 func init() {
+	core.ClassifierHandlers.Register("subnet_autodiscovery", secadvisor.NewClassifySubnetWithAutoDiscovery, false)
 	core.ManglerHandlers.Register("logstatus", secadvisor.NewMangleLogStatus, false)
 	core.EncoderHandlers.Register("secadvisor", secadvisor.NewEncode, true)
 	core.TransformerHandlers.Register("secadvisor", secadvisor.NewTransform, false)

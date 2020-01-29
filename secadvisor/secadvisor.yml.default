@@ -17,6 +17,7 @@ pipeline:
     type: logstatus
   # classify flows into: internal, ingress, egress and other
   classify:
+    type: subnet_autodiscovery
     # list of internal cluster address ranges
     cluster_net_masks:
       - 10.0.0.0/8
