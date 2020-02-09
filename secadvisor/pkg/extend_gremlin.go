@@ -26,9 +26,10 @@ import (
 
 	cache "github.com/pmylund/go-cache"
 	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/contrib/exporters/core"
 	"github.com/skydive-project/skydive/logging"
 	"github.com/spf13/viper"
+
+	"github.com/skydive-project/skydive-flow-exporter/core"
 )
 
 // extendGremlin is used for transforming extensions using gremlin expressions
