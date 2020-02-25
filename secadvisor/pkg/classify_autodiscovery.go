@@ -18,6 +18,8 @@
 package pkg
 
 import (
+	"time"
+
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
@@ -30,12 +32,23 @@ import (
 func NewClassifySubnetWithAutoDiscovery(cfg *viper.Viper) (interface{}, error) {
 	clusterNetMasks := cfg.GetStringSlice(core.CfgRoot + "classify.cluster_net_masks")
 	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
-	nodesIPs, err := FindClusterNodesIPs(gremlinClient)
-	if err != nil {
-		return nil, err
-	}
+	nodesIPs := getClusterNodesIPsWithRetries(gremlinClient)
 	nodesNetmasks := ConvertIPsToNetmasks(nodesIPs)
 	logging.GetLogger().Infof("Adding Kubenetes cluster nodes net masks: %v", nodesNetmasks)
 	clusterNetMasks = append(clusterNetMasks, nodesNetmasks...)
 	return core.NewClassifySubnetFromList(clusterNetMasks)
+}
+
+func getClusterNodesIPsWithRetries(gremlinClient GremlinNodeGetter) []string {
+	logging.GetLogger().Infof("Querying Skydive analzyer topology for Kubenetes cluster nodes information")
+	for {
+		nodesIPs, err := FindClusterNodesIPs(gremlinClient)
+		if err == nil {
+			return nodesIPs
+		} else {
+			logging.GetLogger().Errorf("Failed querying skydive analyzer (retrying): %v", err)
+			time.Sleep(1 * time.Second)
+		}
+	}
+	return []string{} // never reached
 }
