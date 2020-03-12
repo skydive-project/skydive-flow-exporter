@@ -19,6 +19,7 @@ package pkg
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	cache "github.com/pmylund/go-cache"
@@ -163,9 +164,19 @@ func (ft *securityAdvisorFlowTransformer) getFinishType(f *flow.Flow) string {
 	return ""
 }
 
+func cleanLegacyPeerName(name string) string {
+	replaceSpecialChar := func(r rune) rune {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+			return r
+		}
+		return '-'
+	}
+	return strings.Map(replaceSpecialChar, name)
+}
+
 func extractLegacyName(context *PeerContext) string {
 	if context != nil && context.Type == PeerTypePod && context.Name != "" {
-		return "0_0_" + context.Name + "_0"
+		return "0_0_" + cleanLegacyPeerName(context.Name) + "_0"
 	}
 	return ""
 }
