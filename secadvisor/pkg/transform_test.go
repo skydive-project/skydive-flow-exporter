@@ -163,8 +163,8 @@ func Test_Transform_basic_flow(t *testing.T) {
 	core.AssertEqualInt64(t, 1546338030000, secAdvFlow.Last)
 	core.AssertEqual(t, "fake_node_type", secAdvFlow.NodeType)
 	// Test legacy container names
-	core.AssertEqual(t, "0_0_one-namespace/fake-pod-one_0", secAdvFlow.Network.AName)
-	core.AssertEqual(t, "0_0_two-namespace/fake-pod-two_0", secAdvFlow.Network.BName)
+	core.AssertEqual(t, "0_0_one-namespace-fake-pod-one_0", secAdvFlow.Network.AName)
+	core.AssertEqual(t, "0_0_two-namespace-fake-pod-two_0", secAdvFlow.Network.BName)
 	// Test container context
 	core.AssertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
 	core.AssertEqual(t, "one-namespace/fake-pod-one", secAdvFlow.Context.A.Name)
@@ -260,7 +260,7 @@ func TestTransformShouldResolveRuncContainerContext(t *testing.T) {
 	transformer.extendGremlin.populateExtendGremlin(f, transformer)
 	secAdvFlow := transformer.Transform(f).(*SecurityAdvisorFlow)
 	core.AssertEqual(t, "netns", secAdvFlow.NodeType)
-	core.AssertEqual(t, "0_0_kube-system/kubernetes-dashboard-7996b848f4-pmv4z_0", secAdvFlow.Network.AName) // Legacy field
+	core.AssertEqual(t, "0_0_kube-system-kubernetes-dashboard-7996b848f4-pmv4z_0", secAdvFlow.Network.AName) // Legacy field
 	core.AssertEqual(t, PeerTypePod, secAdvFlow.Context.A.Type)
 	core.AssertEqual(t, "kube-system/kubernetes-dashboard-7996b848f4-pmv4z", secAdvFlow.Context.A.Name)
 	core.AssertEqual(t, "ReplicaSet:kube-system/kubernetes-dashboard-7996b848f4", secAdvFlow.Context.A.Set)
@@ -281,4 +281,9 @@ func TestExtendGremlin(t *testing.T) {
 	// verify that extension fields were properly created
 	assertEqualExtend(t, "one-namespace/fake-pod-one", secAdvFlow.Extend, "CA_Name")
 	assertEqualExtend(t, "two-namespace/fake-pod-two", secAdvFlow.Extend, "CB_Name")
+}
+
+func TestCleanLegacyNameShouldRemoveSlashesAndUnderscores(t *testing.T) {
+	core.AssertEqual(t, "abc.123-GHI", cleanLegacyPeerName("abc.123-GHI"))
+	core.AssertEqual(t, "abc-123-GHI", cleanLegacyPeerName("abc_123/GHI"))
 }
