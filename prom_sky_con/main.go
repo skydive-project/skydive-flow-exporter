@@ -19,7 +19,7 @@ package main
 
 import (
 	"github.com/skydive-project/skydive-flow-exporter/core"
-	prom "github.com/skydive-project/skydive-flow-exporter/prometheus/pkg"
+	prom "github.com/skydive-project/skydive-flow-exporter/prom_sky_con/pkg"
 )
 
 func main() {
@@ -27,5 +27,5 @@ func main() {
 }
 
 func init() {
-	core.StorerHandlers.Register("prom_sky_con", prom.NewStorePrometheus, false)
+	core.StorerHandlers.Register("prom_sky_con", prom.NewStorePrometheusWrapper, false)
 }

@@ -107,6 +107,7 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 			if f.Transport == nil {
 				continue
 			}
+			logging.GetLogger().Debugf("flow = %s", f)
 			initiator_ip := f.Network.A
 			target_ip := f.Network.B
 			initiator_port := strconv.FormatInt(f.Transport.A, 10)
@@ -174,8 +175,8 @@ func startPrometheusInterface(s *storePrometheus) {
 	}
 }
 
-// NewStorePrometheusInternal allocates and initializes the storePrometheus structure
-func NewStorePrometheusInternal(cfg *viper.Viper) (*storePrometheus, error) {
+// NewStorePrometheus allocates and initializes the storePrometheus structure
+func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 	// process user defined parameters from yml file
 	port_id := cfg.GetString(core.CfgRoot + "store.prom_sky_con.port")
 	if port_id == "" {
@@ -196,9 +197,9 @@ func NewStorePrometheusInternal(cfg *viper.Viper) (*storePrometheus, error) {
 	return s, nil
 }
 
-// NewStorePrometheus returns a new interface for storing flows info to prometheus and starts the interface
-func NewStorePrometheus(cfg *viper.Viper) (interface{}, error) {
-	s, err := NewStorePrometheusInternal(cfg)
+// NewStorePrometheusWrapper returns a new interface for storing flows info to prometheus and starts the interface
+func NewStorePrometheusWrapper(cfg *viper.Viper) (interface{}, error) {
+	s, err := NewStorePrometheus(cfg)
 	if err != nil {
 		return nil, err
 	}

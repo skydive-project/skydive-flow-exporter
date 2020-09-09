@@ -108,7 +108,7 @@ func getFlow() *flow.Flow {
 func TestStorePrometheus(t *testing.T) {
 	initConfig(testConfig)
 	cfg := config.GetConfig().Viper
-	s, err := NewStorePrometheusInternal(cfg)
+	s, err := NewStorePrometheus(cfg)
 	assertEqual(t, err, nil)
 	f := getFlow()
 	flows := make(map[core.Tag][]interface{})
