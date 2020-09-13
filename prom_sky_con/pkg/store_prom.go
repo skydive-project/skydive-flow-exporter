@@ -25,13 +25,13 @@
 package pkg
 
 import (
+	"container/list"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	cache "github.com/pmylund/go-cache"
 	"github.com/spf13/viper"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -65,18 +65,25 @@ var (
 	)
 )
 
-type storePrometheus struct {
-	pipeline          *core.Pipeline // not currently used
-	port              string
-	connectionCache   *cache.Cache
-	connectionTimeout int64
-}
-
 // we maintain a cache to keep track of connections that have been active/inactive
+// items of the cache are linked together, and an entry that is used is placed at the end of the list.
+// items from the beginning of the list whose timeStamp has expired are deleted.
 type cacheEntry struct {
 	label1    prometheus.Labels
 	label2    prometheus.Labels
 	timeStamp int64
+	e         *list.Element
+	key       string
+}
+
+type myCache map[string]*cacheEntry
+
+type storePrometheus struct {
+	pipeline          *core.Pipeline // not currently used
+	port              string
+	connectionCache   myCache
+	connectionList    *list.List
+	connectionTimeout int64
 }
 
 // SetPipeline setup; called by core/pipeline.NewPipeline
@@ -108,22 +115,42 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 				continue
 			}
 			logging.GetLogger().Debugf("flow = %s", f)
-			initiator_ip := f.Network.A
-			target_ip := f.Network.B
-			initiator_port := strconv.FormatInt(f.Transport.A, 10)
-			target_port := strconv.FormatInt(f.Transport.B, 10)
-			node_tid := f.NodeTID
-			label1 := NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid)
-			label2 := NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid)
+
+			var ok bool
+			var cEntry *cacheEntry
+			var label1, label2 prometheus.Labels
+
+			cEntry, ok = s.connectionCache[f.L3TrackingID]
+			if ok {
+				// item already exists in cache; update the element and move to end of list
+				cEntry.timeStamp = secs
+				label1 = cEntry.label1
+				label2 = cEntry.label2
+				// move to end of list
+				s.connectionList.MoveToBack(cEntry.e)
+			} else {
+				// create new entry for cache
+				initiator_ip := f.Network.A
+				target_ip := f.Network.B
+				initiator_port := strconv.FormatInt(f.Transport.A, 10)
+				target_port := strconv.FormatInt(f.Transport.B, 10)
+				node_tid := f.NodeTID
+				label1 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid)
+				label2 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid)
+				cEntry = &cacheEntry{
+					label1:    label1,
+					label2:    label2,
+					timeStamp: secs,
+					key:       f.L3TrackingID,
+				}
+				// place at end of list
+				e := s.connectionList.PushBack(cEntry)
+				cEntry.e = e
+				s.connectionCache[f.L3TrackingID] = cEntry
+			}
 			// post the info to prometheus
 			bytesSent.With(label1).Set(float64(f.Metric.ABBytes))
 			bytesSent.With(label2).Set(float64(f.Metric.BABytes))
-			cEntry := cacheEntry{
-				label1:    label1,
-				label2:    label2,
-				timeStamp: secs,
-			}
-			s.connectionCache.Set(f.L3TrackingID, cEntry, 0)
 		}
 	}
 	return nil
@@ -133,16 +160,24 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 func (s *storePrometheus) cleanupExpiredEntries() {
 	secs := time.Now().Unix()
 	expireTime := secs - s.connectionTimeout
-	entriesMap := s.connectionCache.Items()
-	for k, v := range entriesMap {
-		v2 := v.Object.(cacheEntry)
-		if v2.timeStamp < expireTime {
-			// clean up the entry
-			logging.GetLogger().Debugf("secs = %s, deleting %s", secs, v2.label1)
-			bytesSent.Delete(v2.label1)
-			bytesSent.Delete(v2.label2)
-			s.connectionCache.Delete(k)
+	// go through the list until we reach recently used connections
+	for true {
+		e := s.connectionList.Front()
+		if e == nil {
+			return
 		}
+		c := e.Value.(*cacheEntry)
+		if c.timeStamp > expireTime {
+			// no more expired items
+			return
+		}
+
+		// clean up the entry
+		logging.GetLogger().Debugf("secs = %s, deleting %s", secs, c.label1)
+		bytesSent.Delete(c.label1)
+		bytesSent.Delete(c.label2)
+		delete(s.connectionCache, c.key)
+		s.connectionList.Remove(e)
 	}
 }
 
@@ -191,7 +226,8 @@ func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 	logging.GetLogger().Infof("connection timeout = %d", connectionTimeout)
 	s := &storePrometheus{
 		port:              ":" + port_id,
-		connectionCache:   cache.New(0, 0),
+		connectionCache:   make(map[string]*cacheEntry),
+		connectionList:    list.New(),
 		connectionTimeout: connectionTimeout,
 	}
 	return s, nil

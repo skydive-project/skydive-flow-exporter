@@ -130,14 +130,14 @@ func TestStorePrometheus(t *testing.T) {
 	assertEqual(t, float64(f.Metric.BABytes), bytesB)
 
 	// verify entry is in cache
-	entriesMap := s.connectionCache.Items()
+	entriesMap := s.connectionCache
 	assertEqual(t, 1, len(entriesMap))
-	_, found := s.connectionCache.Get(f.L3TrackingID)
+	_, found := s.connectionCache[f.L3TrackingID]
 	assertEqual(t, true, found)
 
 	// wait a couple seconds so that the entry will expire
 	time.Sleep(2 * time.Second)
 	s.cleanupExpiredEntries()
-	entriesMap = s.connectionCache.Items()
+	entriesMap = s.connectionCache
 	assertEqual(t, 0, len(entriesMap))
 }
