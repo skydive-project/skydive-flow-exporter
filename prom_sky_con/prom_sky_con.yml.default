@@ -1,0 +1,24 @@
+host_id: ""
+analyzers:
+  - 127.0.0.1:8082
+analyzer:
+  auth:
+    cluster:
+      username:
+      password:
+pipeline:
+  subscriber:
+    url: ws://127.0.0.1:8082/ws/subscriber/flow
+    capture_id: 
+  classify:
+    # cluster_net_masks:
+      # - 10.0.0.0/8
+      # - 172.16.0.0/12
+      # - 192.168.0.0/16
+  transform:
+    type: none
+  store:
+    type: prom_sky_con
+    prom_sky_con:
+      port: 9100
+      connection_timeout: 60
