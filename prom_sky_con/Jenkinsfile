@@ -1,0 +1,48 @@
+pipeline {
+agent { label 'docker-slave' }
+       environment {
+       docker_registry_ip = credentials('jenkins-docker-registry-ip')
+    }
+    stages {
+        stage ('Pull repo code from github') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build docker image') {
+                steps {
+                    sh  """#!/bin/bash
+                            
+                            set -ex
+                            
+                            cd prom_sky_con
+                            docker build -t $docker_registry_ip/prometheus-skydive-connector .
+                            docker tag $docker_registry_ip/prometheus-skydive-connector sodaliteh2020/prometheus-skydive-connector
+                            docker tag $docker_registry_ip/prometheus-skydive-connector sodaliteh2020/prometheus-skydive-connector:${BUILD_NUMBER}
+                        """
+                }
+        }
+        stage('Push Docker image to DockerHub') {
+                when {
+                    branch 'master'
+                }
+                steps {
+                    withDockerRegistry(credentialsId: 'jenkins-sodalite.docker_token', url: '') {
+                        sh  """#!/bin/bash                       
+                                docker push $docker_registry_ip/prometheus-skydive-connector
+                                docker push sodaliteh2020/prometheus-skydive-connector:${BUILD_NUMBER}
+                                docker push sodaliteh2020/prometheus-skydive-connector
+                            """
+                    }
+                }
+        }
+    }
+    post {
+	  failure {
+	      slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+	  }
+	  fixed {
+	      slackSend (color: '#6d3be3', message: "FIXED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+	  }
+	}
+}
