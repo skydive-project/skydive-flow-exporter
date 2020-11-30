@@ -34,11 +34,15 @@ type GremlinNodeGetter interface {
 }
 
 // NewResolveRunc creates a new name resolver
-func NewResolveRunc(cfg *viper.Viper) Resolver {
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+func NewResolveRunc(cfg *viper.Viper) (Resolver, error) {
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
+
 	return &resolveRunc{
 		gremlinClient: gremlinClient,
-	}
+	}, nil
 }
 
 type resolveRunc struct {

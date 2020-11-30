@@ -25,9 +25,9 @@ import (
 	"time"
 
 	cache "github.com/pmylund/go-cache"
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/flow"
+	"github.com/skydive-project/skydive/graffiti/graph"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
 )
@@ -96,7 +96,7 @@ func (c *fakeResolver) TIDToType(nodeTID string) (string, error) {
 func getTestTransformer() *securityAdvisorFlowTransformer {
 	initConfig(testConfig)
 	cfg := config.GetConfig().Viper
-	newExtend := NewExtendGremlin(cfg)
+	newExtend, _ := NewExtendGremlin(cfg)
 	return &securityAdvisorFlowTransformer{
 		flowUpdateCountCache: cache.New(10*time.Minute, 10*time.Minute),
 		resolver:             &fakeResolver{},
@@ -119,7 +119,7 @@ func assertEqualExtend(t *testing.T, expected, actual interface{}, suffix string
 
 func getFlow() *flow.Flow {
 	t, _ := time.Parse(time.RFC3339, "2019-01-01T10:20:30Z")
-	start := common.UnixMillis(t)
+	start := graph.Time(t).UnixMilli()
 	return &flow.Flow{
 		UUID:        "66724f5d-718f-47a2-93a7-c807cd54241e",
 		LayersPath:  "Ethernet/IPv4/TCP",
@@ -210,7 +210,7 @@ func getTestTransformerWithLocalTopology(t *testing.T) *securityAdvisorFlowTrans
 	resolver = NewResolveCache(resolver)
 
 	cfg := config.GetConfig().Viper
-	newExtend := NewExtendGremlin(cfg)
+	newExtend, _ := NewExtendGremlin(cfg)
 
 	return &securityAdvisorFlowTransformer{
 		flowUpdateCountCache: cache.New(10*time.Minute, 10*time.Minute),
@@ -222,7 +222,7 @@ func getTestTransformerWithLocalTopology(t *testing.T) *securityAdvisorFlowTrans
 
 func getRuncFlow() *flow.Flow {
 	t, _ := time.Parse(time.RFC3339, "2019-01-01T10:20:30Z")
-	start := common.UnixMillis(t)
+	start := graph.Time(t).UnixMilli()
 	return &flow.Flow{
 		UUID:        "66724f5d-718f-47a2-93a7-c807cd54241e",
 		LayersPath:  "Ethernet/IPv4/TCP",

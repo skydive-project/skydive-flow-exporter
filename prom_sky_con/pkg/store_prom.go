@@ -39,7 +39,7 @@ import (
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/flow"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // Connections with no traffic for timeout period (in seconds) are no longer reported

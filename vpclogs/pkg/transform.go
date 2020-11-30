@@ -27,8 +27,8 @@ import (
 	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/api/client"
 	"github.com/skydive-project/skydive/flow"
+	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/gremlin"
-	"github.com/skydive-project/skydive/logging"
 )
 
 const (
@@ -87,7 +87,10 @@ type vpclogsFlowTransformer struct {
 
 // NewTransform creates a new flow transformer for vpclogs
 func NewTransform(cfg *viper.Viper) (interface{}, error) {
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
 	return &vpclogsFlowTransformer{
 		interfaceIpCache: cache.New(10*time.Minute, 10*time.Minute),
 		gremlinClient:    gremlinClient,

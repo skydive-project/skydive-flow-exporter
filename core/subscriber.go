@@ -27,11 +27,10 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
-	shttp "github.com/skydive-project/skydive/http"
-	"github.com/skydive-project/skydive/logging"
-	"github.com/skydive-project/skydive/websocket"
+	shttp "github.com/skydive-project/skydive/graffiti/http"
+	"github.com/skydive-project/skydive/graffiti/logging"
+	"github.com/skydive-project/skydive/graffiti/websocket"
 )
 
 // CfgAuthOpts creates the auth options form configuration
@@ -62,7 +61,7 @@ func NewSubscriber(pipeline *Pipeline, cfg *viper.Viper) (*websocket.StructSpeak
 		AuthOpts: CfgAuthOpts(cfg),
 		Headers:  http.Header{"X-Websocket-Namespace": []string{namespace}},
 	}
-	wsClient, err := config.NewWSClient(common.AnalyzerService, subscriberURL, clientOpts)
+	wsClient, err := config.NewWSClient(config.AnalyzerService, subscriberURL, clientOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create websocket client: %s", err)
 	}

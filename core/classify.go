@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/flow"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // Tag represents the flow classification

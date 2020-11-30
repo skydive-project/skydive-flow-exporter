@@ -28,7 +28,7 @@ import (
 
 	"github.com/IBM/ibm-cos-sdk-go/aws"
 
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // stream is a series of consecutive persisted objects
