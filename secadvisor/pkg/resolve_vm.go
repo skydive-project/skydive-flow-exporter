@@ -27,12 +27,15 @@ import (
 )
 
 // NewResolveVM creates a new name resolver
-func NewResolveVM(cfg *viper.Viper) Resolver {
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+func NewResolveVM(cfg *viper.Viper) (Resolver, error) {
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
 
 	return &resolveVM{
 		gremlinClient: gremlinClient,
-	}
+	}, nil
 }
 
 type resolveVM struct {

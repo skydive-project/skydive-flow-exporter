@@ -24,10 +24,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/pkg/errors"
 	cache "github.com/pmylund/go-cache"
-	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/logging"
 	"github.com/spf13/viper"
+
+	"github.com/skydive-project/skydive/api/client"
+	"github.com/skydive-project/skydive/graffiti/logging"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
 )
@@ -58,8 +60,11 @@ type extendGremlin struct {
 }
 
 // NewExtendGremlin creates an extendGremlin structure to handle the defined data extensions
-func NewExtendGremlin(cfg *viper.Viper) *extendGremlin {
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+func NewExtendGremlin(cfg *viper.Viper) (*extendGremlin, error) {
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
 	extendStrings := cfg.GetStringSlice(core.CfgRoot + "transform.secadvisor.extend")
 	nTemplates := 0
 	gremlinTemplates := make([]*template.Template, len(extendStrings))
@@ -70,8 +75,7 @@ func NewExtendGremlin(cfg *viper.Viper) *extendGremlin {
 		substrings := strings.SplitN(ee, "=", 2)
 		vv, err := template.New("extend_template").Parse(substrings[1])
 		if err != nil {
-			logging.GetLogger().Errorf("NewExtendGremlin: template error: %s, template string: %s", err, substrings[1])
-			continue
+			return nil, errors.Wrapf(err, "template error: %s, template string: %s", err, substrings[1])
 		}
 		gremlinTemplates[nTemplates] = vv
 		newVars[nTemplates] = substrings[0]
@@ -83,7 +87,7 @@ func NewExtendGremlin(cfg *viper.Viper) *extendGremlin {
 		gremlinTemplates: gremlinTemplates,
 		newVars:          newVars,
 		nTemplates:       nTemplates,
-	}
+	}, nil
 }
 
 // Extend: main function called to perform the extension substitutions

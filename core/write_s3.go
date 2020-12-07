@@ -28,7 +28,7 @@ import (
 	"github.com/IBM/ibm-cos-sdk-go/aws/session"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
 
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 type writeS3 struct {

@@ -27,8 +27,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive/flow"
-	"github.com/skydive-project/skydive/logging"
-	ws "github.com/skydive-project/skydive/websocket"
+	"github.com/skydive-project/skydive/graffiti/logging"
+	ws "github.com/skydive-project/skydive/graffiti/websocket"
 )
 
 // CfgRoot configuration root path

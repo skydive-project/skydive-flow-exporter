@@ -29,7 +29,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/flow"
 )
@@ -72,7 +71,7 @@ func assertEqual(t *testing.T, expected, actual interface{}) {
 
 func getFlow() *flow.Flow {
 	t, _ := time.Parse(time.RFC3339, "2019-01-01T10:20:30Z")
-	start := common.UnixMillis(t)
+	start := flow.UnixMilli(t)
 	return &flow.Flow{
 		UUID:        "66724f5d-718f-47a2-93a7-c807cd54241e",
 		LayersPath:  "Ethernet/IPv4/TCP",

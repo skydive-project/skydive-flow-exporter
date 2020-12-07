@@ -24,14 +24,17 @@ import (
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/api/client"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // NewClassifySubnetWithAutoDiscovery creates a ClassifySubnet object with
 // additional discovery of Kubernetes cluster nodes IP netmasks.
 func NewClassifySubnetWithAutoDiscovery(cfg *viper.Viper) (interface{}, error) {
 	clusterNetMasks := cfg.GetStringSlice(core.CfgRoot + "classify.cluster_net_masks")
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
 	nodesIPs := getClusterNodesIPsWithRetries(gremlinClient)
 	nodesNetmasks := ConvertIPsToNetmasks(nodesIPs)
 	logging.GetLogger().Infof("Adding Kubenetes cluster nodes net masks: %v", nodesNetmasks)

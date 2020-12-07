@@ -23,24 +23,39 @@ import (
 	"time"
 
 	cache "github.com/pmylund/go-cache"
-	"github.com/skydive-project/skydive/flow"
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
+	"github.com/skydive-project/skydive/flow"
 )
 
 // NewTransform creates a new flow transformer based on a name string
 func NewTransform(cfg *viper.Viper) (interface{}, error) {
 	excludeStartedFlows := cfg.GetBool(core.CfgRoot + "transform.secadvisor.exclude_started_flows")
 
-	runcResolver := NewResolveRunc(cfg)
-	dockerResolver := NewResolveDocker(cfg)
-	vmResolver := NewResolveVM(cfg)
+	runcResolver, err := NewResolveRunc(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	dockerResolver, err := NewResolveDocker(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	vmResolver, err := NewResolveVM(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	resolver := NewResolveMulti(runcResolver, dockerResolver, vmResolver)
 	resolver = NewResolveFallback(resolver)
 	resolver = NewResolveCache(resolver)
 
-	newExtend := NewExtendGremlin(cfg)
+	newExtend, err := NewExtendGremlin(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	return &securityAdvisorFlowTransformer{
 		resolver:             resolver,

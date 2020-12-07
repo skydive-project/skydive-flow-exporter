@@ -44,9 +44,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/flow"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // time for cleanup of old connections
@@ -142,15 +141,29 @@ func (t *Action) collectFlowInfo(fl []interface{}) {
 	}
 }
 
+func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // prepareCombinedMetric initializes a combined FlowMetric structure for the common stats provided
 func prepareCombinedMetric(M1, M2 *flow.FlowMetric) *flow.FlowMetric {
 	// take byte and packet count as minimum of the 2 reports
 	return &flow.FlowMetric{
-		ABPackets: common.MinInt64(M1.ABPackets, M2.ABPackets),
-		BAPackets: common.MinInt64(M1.BAPackets, M2.BAPackets),
-		ABBytes:   common.MinInt64(M1.ABBytes, M2.ABBytes),
-		BABytes:   common.MinInt64(M1.BABytes, M2.BABytes),
-		Last:      common.MinInt64(M1.Last, M2.Last),
+		ABPackets: minInt64(M1.ABPackets, M2.ABPackets),
+		BAPackets: minInt64(M1.BAPackets, M2.BAPackets),
+		ABBytes:   minInt64(M1.ABBytes, M2.ABBytes),
+		BABytes:   minInt64(M1.BABytes, M2.BABytes),
+		Last:      minInt64(M1.Last, M2.Last),
 		Start:     M1.Start,
 	}
 }
@@ -240,7 +253,7 @@ func (t *Action) combineFlows(f *combinedFlowInfo) *VpclogsFlow {
 
 	// if we are at the end of the flow, set Last time to latest of the times measured
 	if flow1.WasTerminated && flow2.WasTerminated {
-		newMetricReported.Last = common.MaxInt64(flow1.Flow.Metric.Last, flow2.Flow.Metric.Last)
+		newMetricReported.Last = maxInt64(flow1.Flow.Metric.Last, flow2.Flow.Metric.Last)
 	}
 
 	// compute LastUpdateMetric based on previous metricReported and current newMetricReported

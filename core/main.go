@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/skydive-project/skydive/config"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // Main entry point for exporters
