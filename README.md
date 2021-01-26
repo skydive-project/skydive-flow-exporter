@@ -35,7 +35,7 @@ Build and run Skydive:
 
 ```
 make static
-sudo $(which skydive) allineone -c etc/skydive.yml.default
+sudo $(which skydive) allinone -c etc/skydive.yml.default
 ```
 
 ## Setup Minio
@@ -59,7 +59,7 @@ Next create the bucket (as destination location for flows):
 ```
 wget https://dl.minio.io/client/mc/release/linux-amd64/mc
 chmod +x mc
-./mc config host add local http://localhost:9000 user password /var/lib/minio --api S3v4
+./mc config host add local http://localhost:9000 user password --api S3v4
 ./mc rm --recursive --force local/bucket
 ./mc rb --force local/bucket
 ./mc mb --ignore-existing local/bucket
@@ -70,10 +70,12 @@ chmod +x mc
 Build and run the pipeline in the secadvisor directory:
 
 ```
-cd contrib/pipelines/secadvisor
+cd secadvisor
 make static
 ./secadvisor secadvisor.yml.default
 ```
+
+secadvisor exectuable might be found in ~/go/bin/
 
 ## Create Capture
 
