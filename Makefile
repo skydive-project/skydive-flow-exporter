@@ -5,6 +5,7 @@ BUILD := \
 	dummy \
 	secadvisor \
 	vpclogs \
+	prom_sky_con \
 
 STATIC := \
 	allinone \
