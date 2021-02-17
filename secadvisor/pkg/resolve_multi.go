@@ -17,10 +17,6 @@
 
 package pkg
 
-import (
-	"github.com/skydive-project/skydive/common"
-)
-
 type resolveMulti struct {
 	resolvers []Resolver
 }
@@ -40,7 +36,7 @@ func (rm *resolveMulti) IPToContext(ipString, nodeTID string) (*PeerContext, err
 		}
 	}
 
-	return nil, common.ErrNotFound
+	return nil, ErrNotFound
 }
 
 // TIDToType resolve tid to type
@@ -51,5 +47,5 @@ func (rm *resolveMulti) TIDToType(nodeTID string) (string, error) {
 		}
 	}
 
-	return "", common.ErrNotFound
+	return "", ErrNotFound
 }

@@ -39,7 +39,7 @@ import (
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
 	"github.com/skydive-project/skydive/flow"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
 
 // Connections with no traffic for timeout period (in seconds) are no longer reported
@@ -53,6 +53,8 @@ const (
 	DirectionTtoI string = "target_to_initiator"
 )
 
+var connectionLabels = []string {"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid", "protocol"}
+
 // data to be exported to prometheus
 // one data item per tuple
 var (
@@ -61,7 +63,21 @@ var (
 			Name: "skydive_network_connection_total_bytes",
 			Help: "Number of bytes that have been transmmitted on this connection",
 		},
-		[]string{"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid"},
+		connectionLabels,
+	)
+	packetsSent = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_connection_total_packets",
+			Help: "Number of packets that have been transmmitted on this connection",
+		},
+		connectionLabels,
+	)
+	rtt = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_connection_rtt_nanoseconds",
+			Help: "Round Trip Time of packets that have been transmmitted on this connection",
+		},
+		connectionLabels,
 	)
 )
 
@@ -92,7 +108,7 @@ func (s *storePrometheus) SetPipeline(pipeline *core.Pipeline) {
 }
 
 // NewLabel helper function to create proper prometheus Label syntax
-func NewLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string) prometheus.Labels {
+func NewLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string, protocol flow.FlowProtocol) prometheus.Labels {
 	label := prometheus.Labels{
 		"initiator_ip":   initiator_ip,
 		"target_ip":      target_ip,
@@ -100,6 +116,7 @@ func NewLabel(initiator_ip, target_ip, initiator_port, target_port, direction, n
 		"target_port":    target_port,
 		"direction":      direction,
 		"node_tid":       node_tid,
+		"protocol":	  protocol.String(),
 	}
 	return label
 }
@@ -135,8 +152,9 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 				initiator_port := strconv.FormatInt(f.Transport.A, 10)
 				target_port := strconv.FormatInt(f.Transport.B, 10)
 				node_tid := f.NodeTID
-				label1 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid)
-				label2 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid)
+				protocol := f.Transport.Protocol
+				label1 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
+				label2 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
 				cEntry = &cacheEntry{
 					label1:    label1,
 					label2:    label2,
@@ -151,6 +169,9 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 			// post the info to prometheus
 			bytesSent.With(label1).Set(float64(f.Metric.ABBytes))
 			bytesSent.With(label2).Set(float64(f.Metric.BABytes))
+			packetsSent.With(label1).Set(float64(f.Metric.ABPackets))
+			packetsSent.With(label2).Set(float64(f.Metric.BAPackets))
+			rtt.With(label1).Set(float64(f.Metric.RTT))
 		}
 	}
 	return nil
@@ -176,6 +197,9 @@ func (s *storePrometheus) cleanupExpiredEntries() {
 		logging.GetLogger().Debugf("secs = %s, deleting %s", secs, c.label1)
 		bytesSent.Delete(c.label1)
 		bytesSent.Delete(c.label2)
+		packetsSent.Delete(c.label1)
+		packetsSent.Delete(c.label2)
+		rtt.Delete(c.label1)
 		delete(s.connectionCache, c.key)
 		s.connectionList.Remove(e)
 	}
@@ -198,6 +222,8 @@ func startPrometheusInterface(s *storePrometheus) {
 
 	// Metrics have to be registered to be exposed:
 	registerCollector(bytesSent)
+	registerCollector(packetsSent)
+	registerCollector(rtt)
 
 	// The Handler function provides a default handler to expose metrics
 	// via an HTTP server. "/metrics" is the usual endpoint for that.

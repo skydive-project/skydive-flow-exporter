@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/viper"
 
 	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
-	"github.com/skydive-project/skydive/common"
+	"github.com/skydive-project/skydive/graffiti/graph"
 )
 
 type mangleLogStatus struct {
@@ -33,7 +33,7 @@ type mangleLogStatus struct {
 
 // Mangle log-status book keeping
 func (m *mangleLogStatus) Mangle(in []interface{}) (out []interface{}) {
-	now := common.UnixMillis(time.Now())
+	now := graph.Time(time.Now()).UnixMilli()
 
 	// OK: all flows
 	for _, flow := range in {

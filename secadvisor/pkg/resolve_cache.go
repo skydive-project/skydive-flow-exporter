@@ -18,13 +18,16 @@
 package pkg
 
 import (
+	"errors"
 	"time"
 
 	cache "github.com/pmylund/go-cache"
 
-	"github.com/skydive-project/skydive/common"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
 )
+
+// ErrNotFound is returned when an IP could not be resolved
+var ErrNotFound = errors.New("not found")
 
 // Resolver resolves values for the transformer
 type Resolver interface {
@@ -64,7 +67,7 @@ func (rc *resolveCache) IPToContext(ipString, nodeTID string) (*PeerContext, err
 	case nil:
 		rc.contextCache.Set(cacheKey, context, cache.DefaultExpiration)
 		return context, nil
-	case common.ErrNotFound:
+	case ErrNotFound:
 		rc.contextCache.Set(cacheKey, nil, cache.DefaultExpiration)
 		return nil, nil
 	default:
@@ -82,7 +85,7 @@ func (rc *resolveCache) TIDToType(nodeTID string) (string, error) {
 		nodeType, err = rc.resolver.TIDToType(nodeTID)
 
 		if err != nil {
-			if err != common.ErrNotFound {
+			if err != ErrNotFound {
 				logging.GetLogger().Warningf("Failed to query node type for TID '%s': %s", nodeTID, err)
 			}
 			return "", err

@@ -26,11 +26,15 @@ import (
 )
 
 // NewResolveDocker creates a new name resolver
-func NewResolveDocker(cfg *viper.Viper) Resolver {
-	gremlinClient := client.NewGremlinQueryHelper(core.CfgAuthOpts(cfg))
+func NewResolveDocker(cfg *viper.Viper) (Resolver, error) {
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
+
 	return &resolveDocker{
 		gremlinClient: gremlinClient,
-	}
+	}, nil
 }
 
 type resolveDocker struct {

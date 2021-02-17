@@ -22,7 +22,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
 	"github.com/skydive-project/skydive/gremlin"
@@ -78,7 +77,7 @@ func (l *localGremlinQueryHelper) GetNode(query interface{}) (*graph.Node, error
 		return nodes[0], nil
 	}
 
-	return nil, common.ErrNotFound
+	return nil, ErrNotFound
 }
 
 func newLocalGremlinQueryHelper(graph *graph.Graph) *localGremlinQueryHelper {
@@ -90,7 +89,7 @@ func newGraph(t *testing.T) *graph.Graph {
 	if err != nil {
 		t.Error(err)
 	}
-	return graph.NewGraph("testhost", b, common.UnknownService)
+	return graph.NewGraph("testhost", b, "test")
 }
 
 func newRuncTopologyGraph(t *testing.T) *graph.Graph {

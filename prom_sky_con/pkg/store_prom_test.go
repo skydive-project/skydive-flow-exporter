@@ -29,7 +29,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
-	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/flow"
 )
@@ -48,6 +47,7 @@ const target_ip = "173.194.40.147"
 const initiator_port = 47838
 const target_port = 80
 const node_tid = "probe-tid"
+const protocol = flow.FlowProtocol_TCP
 
 func initConfig(conf string) error {
 	f, _ := ioutil.TempFile("", "store_prom_test")
@@ -72,7 +72,7 @@ func assertEqual(t *testing.T, expected, actual interface{}) {
 
 func getFlow() *flow.Flow {
 	t, _ := time.Parse(time.RFC3339, "2019-01-01T10:20:30Z")
-	start := common.UnixMillis(t)
+	start := flow.UnixMilli(t)
 	return &flow.Flow{
 		UUID:        "66724f5d-718f-47a2-93a7-c807cd54241e",
 		LayersPath:  "Ethernet/IPv4/TCP",
@@ -97,6 +97,7 @@ func getFlow() *flow.Flow {
 			ABBytes:   516,
 			BAPackets: 4,
 			BABytes:   760,
+			RTT:       1234567,
 		},
 		Start:        start,
 		Last:         start,
@@ -118,16 +119,30 @@ func TestStorePrometheus(t *testing.T) {
 	s.StoreFlows(flows)
 
 	// verify that the flow is reported to prometheus
-	label1 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionItoT, node_tid)
+	label1 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionItoT, node_tid, protocol)
 	gaugeA, err := bytesSent.GetMetricWith(label1)
 	bytesA := testutil.ToFloat64(gaugeA)
 	assertEqual(t, nil, err)
 	assertEqual(t, float64(f.Metric.ABBytes), bytesA)
-	label2 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionTtoI, node_tid)
+	label2 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionTtoI, node_tid, protocol)
 	gaugeB, err := bytesSent.GetMetricWith(label2)
 	assertEqual(t, nil, err)
 	bytesB := testutil.ToFloat64(gaugeB)
 	assertEqual(t, float64(f.Metric.BABytes), bytesB)
+
+	gaugeA2, err := packetsSent.GetMetricWith(label1)
+	packetsA := testutil.ToFloat64(gaugeA2)
+	assertEqual(t, nil, err)
+	assertEqual(t, float64(f.Metric.ABPackets), packetsA)
+	gaugeB2, err := packetsSent.GetMetricWith(label2)
+	packetsB := testutil.ToFloat64(gaugeB2)
+	assertEqual(t, nil, err)
+	assertEqual(t, float64(f.Metric.BAPackets), packetsB)
+
+	gaugeR, err := rtt.GetMetricWith(label1)
+	rtt := testutil.ToFloat64(gaugeR)
+	assertEqual(t, nil, err)
+	assertEqual(t, float64(f.Metric.RTT), rtt)
 
 	// verify entry is in cache
 	entriesMap := s.connectionCache

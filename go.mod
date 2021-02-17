@@ -1,38 +1,43 @@
 module github.com/skydive-project/skydive-flow-exporter
 
+go 1.14
+
 require (
-	github.com/GehirnInc/crypt v0.0.0-20190301055215-6c0105aabd46 // indirect
 	github.com/IBM/ibm-cos-sdk-go v1.3.0
-	github.com/cnf/structhash v0.0.0-20180104161610-62a607eb0224 // indirect
-	github.com/coreos/etcd v3.3.16+incompatible // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gocarina/gocsv v0.0.0-20190927101021-3ecffd272576
-	github.com/gophercloud/gophercloud v0.4.0 // indirect
-	github.com/gorilla/mux v1.7.3 // indirect
-	github.com/hashicorp/go-version v1.2.0 // indirect
 	github.com/olivere/elastic v6.2.24+incompatible // indirect
 	github.com/pierrec/xxHash v0.1.5 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
-	github.com/skydive-project/skydive v0.26.0
+	github.com/prometheus/client_golang v1.1.0
+	github.com/skydive-project/skydive v0.0.0-20201119083540-4fc3ac87ecdd
+	github.com/skydive-project/skydive/graffiti v0.0.0-20201119083540-4fc3ac87ecdd
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.4.0
-	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
+	github.com/spf13/viper v1.7.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
-	golang.org/x/net v0.0.0-20191009170851-d66e71096ffb // indirect
 )
 
 // This section is copied as-is from skydive v0.26.0 go.mod
 replace (
+	github.com/census-instrumentation/opencensus-proto v0.1.0-0.20181214143942-ba49f56771b8 => github.com/census-instrumentation/opencensus-proto v0.0.3-0.20181214143942-ba49f56771b8
+	github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
 	github.com/digitalocean/go-libvirt => github.com/lebauce/go-libvirt v0.0.0-20190717144624-7799d804f7e4
-	github.com/iovisor/gobpf => github.com/lebauce/gobpf v0.0.0-20190909090614-f9e9df81702a
+	github.com/networkservicemesh/networkservicemesh => github.com/networkservicemesh/networkservicemesh v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/controlplane => github.com/networkservicemesh/networkservicemesh/controlplane v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/controlplane/api => github.com/networkservicemesh/networkservicemesh/controlplane/api v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/dataplane => github.com/networkservicemesh/networkservicemesh/dataplane v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/dataplane/api => github.com/networkservicemesh/networkservicemesh/dataplane/api v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/k8s => github.com/networkservicemesh/networkservicemesh/k8s v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/k8s/api => github.com/networkservicemesh/networkservicemesh/k8s/api v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/pkg => github.com/networkservicemesh/networkservicemesh/pkg v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/sdk => github.com/networkservicemesh/networkservicemesh/sdk v0.0.0-20191017074247-aa5815869b2c
+	github.com/networkservicemesh/networkservicemesh/utils => github.com/networkservicemesh/networkservicemesh/utils v0.0.0-20191017074247-aa5815869b2c
 	github.com/newtools/ebpf => github.com/nplanel/ebpf v0.0.0-20190918123742-99947faabce5
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.3
-	github.com/skydive-project/skydive/scripts/gendecoder => ./scripts/gendecoder
-	github.com/spf13/viper v1.4.0 => github.com/lebauce/viper v0.0.0-20190903114911-3b7a98e30843
-	github.com/vishvananda/netlink v1.0.0 => github.com/lebauce/netlink v0.0.0-20190122103356-fa328be7c8d2
-	golang.org/x/sys => golang.org/x/sys v0.0.0-20190412213103-97732733099d
+	github.com/spf13/viper v1.7.0 => github.com/lebauce/viper v0.0.0-20190903114911-3b7a98e30843
+	github.com/vishvananda/netlink v1.0.0 => github.com/lebauce/netlink v0.0.0-20200826081334-244950452e97
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20190925230517-ea99b82c7b93
 	k8s.io/api => k8s.io/api v0.0.0-20191016110408-35e52d86657a
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65
@@ -56,3 +61,7 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20191016113814-3b1a734dba6e
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20191016112829-06bb3c9d77c9
 )
+
+replace github.com/skydive-project/skydive => github.com/skydive-project/skydive v0.0.0-20201119083540-4fc3ac87ecdd
+
+replace github.com/skydive-project/skydive/graffiti => github.com/skydive-project/skydive/graffiti v0.0.0-20201119083540-4fc3ac87ecdd

@@ -21,6 +21,7 @@ import (
 	awsflowlogs "github.com/skydive-project/skydive-flow-exporter/awsflowlogs/pkg"
 	"github.com/skydive-project/skydive-flow-exporter/core"
 	secadvisor "github.com/skydive-project/skydive-flow-exporter/secadvisor/pkg"
+	prom "github.com/skydive-project/skydive-flow-exporter/prom_sky_con/pkg"
 )
 
 func main() {
@@ -33,4 +34,5 @@ func init() {
 	core.EncoderHandlers.Register("secadvisor", secadvisor.NewEncode, false)
 	core.TransformerHandlers.Register("awsflowlogs", awsflowlogs.NewTransform, false)
 	core.TransformerHandlers.Register("secadvisor", secadvisor.NewTransform, false)
+	core.StorerHandlers.Register("prom_sky_con", prom.NewStorePrometheusWrapper, false)
 }
