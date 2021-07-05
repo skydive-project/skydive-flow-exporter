@@ -16,16 +16,17 @@
  */
 
 /*
- * This is a skeleton program to export skydive flow information to prometheus.
+ * This is a program to export skydive metrics to prometheus.
  * For each captured flow, we export the total number of bytes transferred on that flow.
  * Flows that have been inactive for some time are removed from the report.
- * Users may use the enclosed example as a base upon which to report additional skydive metrics through prometheus.
+ * In addition to per flow metrics, metrics are reported for network interfaces.
  */
 
 package pkg
 
 import (
 	"container/list"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,6 +39,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/skydive-project/skydive-flow-exporter/core"
+	"github.com/skydive-project/skydive/api/client"
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/graffiti/logging"
 )
@@ -48,12 +50,16 @@ const defaultConnectionTimeout = 60
 // Run the cleanup process every cleanupTime seconds
 const cleanupTime = 120
 
+// Collect the interface metrics every interfaceMetricsTime seconds
+const interfaceMetricsTime = 20
+
 const (
 	DirectionItoT string = "initiator_to_target"
 	DirectionTtoI string = "target_to_initiator"
 )
 
-var connectionLabels = []string {"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid", "protocol"}
+var connectionLabels = []string{"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid", "protocol"}
+var interfaceLabels = []string{"interface_name", "host", "interface_type", "ipv4", "ipv6", "node_tid"}
 
 // data to be exported to prometheus
 // one data item per tuple
@@ -75,9 +81,86 @@ var (
 	rtt = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "skydive_network_connection_rtt_nanoseconds",
-			Help: "Round Trip Time of packets that have been transmmitted on this connection",
+			Help: "Round Trip Time of packets that have been transmitted on this connection",
 		},
 		connectionLabels,
+	)
+	rxBytes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_rx_bytes",
+			Help: "Number of bytes that have been received on this interface",
+		},
+		interfaceLabels,
+	)
+	txBytes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_tx_bytes",
+			Help: "Number of bytes that have been transmitted by this interface",
+		},
+		interfaceLabels,
+	)
+	rxPackets = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_rx_packets",
+			Help: "Number of packets that have been received on this interface",
+		},
+		interfaceLabels,
+	)
+	txPackets = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_tx_packets",
+			Help: "Number of packets that have been transmitted by this interface",
+		},
+		interfaceLabels,
+	)
+	rxDropped = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_rx_dropped",
+			Help: "Number of received packets that have been dropped by this interface",
+		},
+		interfaceLabels,
+	)
+	txDropped = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_tx_dropped",
+			Help: "Number of transmitted packets that have been dropped on this interface",
+		},
+		interfaceLabels,
+	)
+	rxErrors = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_rx_errors",
+			Help: "Number of errors on received packets on this interface",
+		},
+		interfaceLabels,
+	)
+	txErrors = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_tx_errors",
+			Help: "Number of errors on transmitted packets on this interface",
+		},
+		interfaceLabels,
+	)
+	rxMissedErrors = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_rx_missed_errors",
+			Help: "Number of missed errors on received packets on this interface",
+		},
+		interfaceLabels,
+	)
+	txMissedErrors = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_tx_missed_errors",
+			Help: "Number of missed errors on transmitted packets on this interface",
+		},
+		interfaceLabels,
+	)
+	collisions = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "skydive_network_interface_collisions",
+			Help: "Number of collisions reported on this interface",
+		},
+		interfaceLabels,
 	)
 )
 
@@ -100,6 +183,7 @@ type storePrometheus struct {
 	connectionCache   myCache
 	connectionList    *list.List
 	connectionTimeout int64
+	gremlinClient     *client.GremlinQueryHelper
 }
 
 // SetPipeline setup; called by core/pipeline.NewPipeline
@@ -107,8 +191,8 @@ func (s *storePrometheus) SetPipeline(pipeline *core.Pipeline) {
 	s.pipeline = pipeline
 }
 
-// NewLabel helper function to create proper prometheus Label syntax
-func NewLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string, protocol flow.FlowProtocol) prometheus.Labels {
+// NewFlowLabel helper function to create proper prometheus Label syntax
+func NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string, protocol flow.FlowProtocol) prometheus.Labels {
 	label := prometheus.Labels{
 		"initiator_ip":   initiator_ip,
 		"target_ip":      target_ip,
@@ -116,9 +200,144 @@ func NewLabel(initiator_ip, target_ip, initiator_port, target_port, direction, n
 		"target_port":    target_port,
 		"direction":      direction,
 		"node_tid":       node_tid,
-		"protocol":	  protocol.String(),
+		"protocol":       protocol.String(),
 	}
 	return label
+}
+
+// NewInterfaceLabel helper function to create proper prometheus Label syntax
+func NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid string) prometheus.Labels {
+	label := prometheus.Labels{
+		"interface_name": interface_name,
+		"host":           host,
+		"interface_type": interface_type,
+		"ipv4":           ipv4,
+		"ipv6":           ipv6,
+		"node_tid":       node_tid,
+	}
+	return label
+}
+
+func (s *storePrometheus) InterfaceMetrics() {
+	// obtain skydive nodes of all network interfaces
+	queryString := "G.V().Has('EncapType', 'ether')"
+	result, err := s.gremlinClient.Query(queryString)
+	if err != nil {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin query error; err = %s, result = %s", err, result)
+		return
+	} else if len(result) == 0 {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin empty query")
+		return
+	}
+	// covert query (json text) result to dictionaries
+	// result is a list of dictionaries, one list entry per network interface.
+	var result2 []map[string]interface{}
+	err = json.Unmarshal(result, &result2)
+	if err != nil {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin marshalling error; err = %s, result2 = %s", err, result2)
+		return
+	}
+	for _, interface_entry := range result2 {
+		var ipv4, ipv6 string
+		var metrics map[string]interface{}
+
+		// for each interface entry, extract all the relevant information
+		host := interface_entry["Host"].(string)
+		metadata := interface_entry["Metadata"].(map[string]interface{})
+		interface_name := metadata["Name"].(string)
+		interface_type := metadata["Type"].(string)
+		node_tid := metadata["TID"].(string)
+
+		// not all network interfaces have an IPV4 address defined
+		ip, ok := metadata["IPV4"]
+		if !ok {
+			ipv4 = ""
+		} else {
+			ipv4 = ip.([]interface{})[0].(string)
+		}
+		ip, ok = metadata["IPV6"]
+		if !ok {
+			ipv6 = ""
+		} else {
+			ipv6 = ip.([]interface{})[0].(string)
+		}
+
+		// metrics are reported only if non-zero; fill in missing metrics
+		metrics, ok = metadata["Metric"].(map[string]interface{})
+		if !ok {
+			metrics = make(map[string]interface{})
+			metrics["RxBytes"] = 0
+			metrics["TxBytes"] = 0
+			metrics["RxPackets"] = 0
+			metrics["TxPackets"] = 0
+			metrics["RxErrors"] = 0
+			metrics["TxErrors"] = 0
+			metrics["RxMissedErrors"] = 0
+			metrics["TxMissedErrors"] = 0
+			metrics["RxDropped"] = 0
+			metrics["TxDropped"] = 0
+			metrics["Collisions"] = 0
+		}
+		rx_bytes, ok := metrics["RxBytes"].(float64)
+		if !ok {
+			rx_bytes = 0
+		}
+		tx_bytes, ok := metrics["TxBytes"].(float64)
+		if !ok {
+			tx_bytes = 0
+		}
+		rx_packets, ok := metrics["RxPackets"].(float64)
+		if !ok {
+			rx_packets = 0
+		}
+		tx_packets, ok := metrics["TxPackets"].(float64)
+		if !ok {
+			tx_packets = 0
+		}
+		rx_errors, ok := metrics["RxErrors"].(float64)
+		if !ok {
+			rx_errors = 0
+		}
+		tx_errors, ok := metrics["TxErrors"].(float64)
+		if !ok {
+			tx_errors = 0
+		}
+		rx_missed_errors, ok := metrics["RxMissedErrors"].(float64)
+		if !ok {
+			rx_missed_errors = 0
+		}
+		tx_missed_errors, ok := metrics["TxMissedErrors"].(float64)
+		if !ok {
+			tx_missed_errors = 0
+		}
+		rx_dropped, ok := metrics["RxDropped"].(float64)
+		if !ok {
+			rx_dropped = 0
+		}
+		tx_dropped, ok := metrics["TxDropped"].(float64)
+		if !ok {
+			tx_dropped = 0
+		}
+		collisions_, ok := metrics["Collisions"].(float64)
+		if !ok {
+			collisions_ = 0
+		}
+
+		// report the metrics to prometheus
+		label := NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid)
+		logging.GetLogger().Debugf("rx_bytes = %d, label = %s", rx_bytes, label)
+		rxBytes.With(label).Set(rx_bytes)
+		txBytes.With(label).Set(tx_bytes)
+		rxPackets.With(label).Set(rx_packets)
+		txPackets.With(label).Set(tx_packets)
+		rxErrors.With(label).Set(rx_errors)
+		txErrors.With(label).Set(tx_errors)
+		rxMissedErrors.With(label).Set(rx_missed_errors)
+		txMissedErrors.With(label).Set(tx_missed_errors)
+		rxDropped.With(label).Set(rx_dropped)
+		txDropped.With(label).Set(tx_dropped)
+		collisions.With(label).Set(collisions_)
+	}
 }
 
 // StoreFlows store flows info in memory, before being shipped out
@@ -153,8 +372,8 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 				target_port := strconv.FormatInt(f.Transport.B, 10)
 				node_tid := f.NodeTID
 				protocol := f.Transport.Protocol
-				label1 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
-				label2 = NewLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
+				label1 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
+				label2 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
 				cEntry = &cacheEntry{
 					label1:    label1,
 					label2:    label2,
@@ -212,6 +431,13 @@ func (s *storePrometheus) cleanupExpiredEntriesLoop() {
 	}
 }
 
+func (s *storePrometheus) interfaceMericsLoop() {
+	for true {
+		s.InterfaceMetrics()
+		time.Sleep(interfaceMetricsTime * time.Second)
+	}
+}
+
 // registerCollector - needed in order to send metrics to prometheus
 func registerCollector(c prometheus.Collector) {
 	prometheus.Register(c)
@@ -224,6 +450,17 @@ func startPrometheusInterface(s *storePrometheus) {
 	registerCollector(bytesSent)
 	registerCollector(packetsSent)
 	registerCollector(rtt)
+	registerCollector(rxBytes)
+	registerCollector(txBytes)
+	registerCollector(rxPackets)
+	registerCollector(txPackets)
+	registerCollector(rxErrors)
+	registerCollector(txErrors)
+	registerCollector(rxMissedErrors)
+	registerCollector(txMissedErrors)
+	registerCollector(rxDropped)
+	registerCollector(txDropped)
+	registerCollector(collisions)
 
 	// The Handler function provides a default handler to expose metrics
 	// via an HTTP server. "/metrics" is the usual endpoint for that.
@@ -250,11 +487,19 @@ func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 		connectionTimeout = defaultConnectionTimeout
 	}
 	logging.GetLogger().Infof("connection timeout = %d", connectionTimeout)
+
+	// for interface metrics, we use a gremlinClient
+	gremlinClient, err := client.NewGremlinQueryHelperFromConfig(core.CfgAuthOpts(cfg))
+	if err != nil {
+		return nil, err
+	}
+
 	s := &storePrometheus{
 		port:              ":" + port_id,
 		connectionCache:   make(map[string]*cacheEntry),
 		connectionList:    list.New(),
 		connectionTimeout: connectionTimeout,
+		gremlinClient:     gremlinClient,
 	}
 	return s, nil
 }
@@ -267,5 +512,6 @@ func NewStorePrometheusWrapper(cfg *viper.Viper) (interface{}, error) {
 	}
 	go startPrometheusInterface(s)
 	go s.cleanupExpiredEntriesLoop()
+	go s.interfaceMericsLoop()
 	return s, nil
 }
