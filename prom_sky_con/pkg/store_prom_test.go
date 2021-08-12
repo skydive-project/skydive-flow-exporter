@@ -48,6 +48,10 @@ const initiator_port = 47838
 const target_port = 80
 const node_tid = "probe-tid"
 const protocol = flow.FlowProtocol_TCP
+const host_name = "host1"
+const interface_name = "host1_name"
+const interface_type = "face_eth"
+const ipv6 = "10:20:30:40:50:60"
 
 func initConfig(conf string) error {
 	f, _ := ioutil.TempFile("", "store_prom_test")
@@ -119,12 +123,12 @@ func TestStorePrometheus(t *testing.T) {
 	s.StoreFlows(flows)
 
 	// verify that the flow is reported to prometheus
-	label1 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionItoT, node_tid, protocol)
+	label1 := NewFlowLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionItoT, node_tid, protocol)
 	gaugeA, err := bytesSent.GetMetricWith(label1)
 	bytesA := testutil.ToFloat64(gaugeA)
 	assertEqual(t, nil, err)
 	assertEqual(t, float64(f.Metric.ABBytes), bytesA)
-	label2 := NewLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionTtoI, node_tid, protocol)
+	label2 := NewFlowLabel(initiator_ip, target_ip, strconv.FormatInt(initiator_port, 10), strconv.FormatInt(target_port, 10), DirectionTtoI, node_tid, protocol)
 	gaugeB, err := bytesSent.GetMetricWith(label2)
 	assertEqual(t, nil, err)
 	bytesB := testutil.ToFloat64(gaugeB)
@@ -154,5 +158,77 @@ func TestStorePrometheus(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	s.cleanupExpiredEntries()
 	entriesMap = s.connectionCache
+	assertEqual(t, 0, len(entriesMap))
+}
+
+func getInterface() map[string]interface{} {
+	metrics := map[string]float64 {
+		"RxBytes": float64(10),
+		"TxBytes": float64(20),
+		"RxPackets": float64(2),
+		"TxPackets": float64(3),
+		"RxErrors": float64(1),
+	}
+	ip4 := [](interface{}) { initiator_ip }
+	ip6 := [](interface{}) { ipv6 }
+	metadata := map[string]interface{} {
+		"Name": interface_name,
+		"Type": interface_type,
+		"TID": node_tid,
+		"IPV4": ip4,
+		"IPV6": ip6,
+		"Metric": metrics,
+	}
+	test_interface := map[string]interface{} {
+		"Host": host_name,
+		"Metadata": metadata,
+	}
+	return test_interface
+}
+
+func TestStoreInterfaceMetrics(t *testing.T) {
+	initConfig(testConfig)
+	cfg := config.GetConfig().Viper
+	s, err := NewStorePrometheus(cfg)
+	assertEqual(t, err, nil)
+	e := getInterface()
+	eList := make([]map[string]interface{}, 0)
+	eList = append(eList, e)
+	s.StoreInterfaceMetrics(eList)
+
+	// verify that the interface info is reported to prometheus
+	label := NewInterfaceLabel(interface_name, host_name, interface_type, initiator_ip, ipv6,  node_tid)
+
+	gaugeA, err := rxBytes.GetMetricWith(label)
+	bytesA := testutil.ToFloat64(gaugeA)
+	assertEqual(t, nil, err)
+	metadata := e["Metadata"].(map[string]interface{})
+	metrics := metadata["Metric"].(map[string]float64)
+	assertEqual(t, metrics["RxBytes"], bytesA)
+
+	gaugeA, err = txBytes.GetMetricWith(label)
+	bytesA = testutil.ToFloat64(gaugeA)
+	assertEqual(t, nil, err)
+	metadata = e["Metadata"].(map[string]interface{})
+	metrics = metadata["Metric"].(map[string]float64)
+	assertEqual(t, metrics["TxBytes"], bytesA)
+
+	gaugeA, err = rxDropped.GetMetricWith(label)
+	bytesA = testutil.ToFloat64(gaugeA)
+	assertEqual(t, nil, err)
+	metadata = e["Metadata"].(map[string]interface{})
+	metrics = metadata["Metric"].(map[string]float64)
+	assertEqual(t, metrics["RxDropped"], bytesA)
+
+	// verify entry is in cache
+	entriesMap := s.interfCache
+	assertEqual(t, 1, len(entriesMap))
+	_, found := s.interfCache[node_tid]
+	assertEqual(t, true, found)
+
+	// wait a couple seconds so that the entry will expire
+	time.Sleep(2 * time.Second)
+	s.cleanupExpiredEntries()
+	entriesMap = s.interfCache
 	assertEqual(t, 0, len(entriesMap))
 }

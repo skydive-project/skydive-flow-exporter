@@ -167,7 +167,7 @@ var (
 // we maintain a cache to keep track of connections that have been active/inactive
 // items of the cache are linked together, and an entry that is used is placed at the end of the list.
 // items from the beginning of the list whose timeStamp has expired are deleted.
-type cacheEntry struct {
+type flowCacheEntry struct {
 	label1    prometheus.Labels
 	label2    prometheus.Labels
 	timeStamp int64
@@ -175,13 +175,24 @@ type cacheEntry struct {
 	key       string
 }
 
-type myCache map[string]*cacheEntry
+type flowCache map[string]*flowCacheEntry
+
+type interfaceCacheEntry struct {
+	label     prometheus.Labels
+	timeStamp int64
+	e         *list.Element
+	key       string
+}
+
+type interfaceCache map[string]*interfaceCacheEntry
 
 type storePrometheus struct {
 	pipeline          *core.Pipeline // not currently used
 	port              string
-	connectionCache   myCache
+	connectionCache   flowCache
 	connectionList    *list.List
+	interfCache       interfaceCache
+	interfaceList     *list.List
 	connectionTimeout int64
 	gremlinClient     *client.GremlinQueryHelper
 }
@@ -218,28 +229,12 @@ func NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_ti
 	return label
 }
 
-func (s *storePrometheus) InterfaceMetrics() {
-	// obtain skydive nodes of all network interfaces
-	queryString := "G.V().Has('EncapType', 'ether')"
-	result, err := s.gremlinClient.Query(queryString)
-	if err != nil {
-		logging.GetLogger().Errorf("InterfaceMetrics: gremlin query error; err = %s, result = %s", err, result)
-		return
-	} else if len(result) == 0 {
-		logging.GetLogger().Errorf("InterfaceMetrics: gremlin empty query")
-		return
-	}
-	// covert query (json text) result to dictionaries
-	// result is a list of dictionaries, one list entry per network interface.
-	var result2 []map[string]interface{}
-	err = json.Unmarshal(result, &result2)
-	if err != nil {
-		logging.GetLogger().Errorf("InterfaceMetrics: gremlin marshalling error; err = %s, result2 = %s", err, result2)
-		return
-	}
-	for _, interface_entry := range result2 {
+// StoreInterfaceMetrics - parse list of interface metrics received from skydive
+func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]interface{}) {
+	secs := time.Now().Unix()
+	for _, interface_entry := range interface_metrics {
 		var ipv4, ipv6 string
-		var metrics map[string]interface{}
+		var metrics map[string]float64
 
 		// for each interface entry, extract all the relevant information
 		host := interface_entry["Host"].(string)
@@ -263,68 +258,92 @@ func (s *storePrometheus) InterfaceMetrics() {
 		}
 
 		// metrics are reported only if non-zero; fill in missing metrics
-		metrics, ok = metadata["Metric"].(map[string]interface{})
+		metrics, ok = metadata["Metric"].(map[string]float64)
 		if !ok {
-			metrics = make(map[string]interface{})
-			metrics["RxBytes"] = 0
-			metrics["TxBytes"] = 0
-			metrics["RxPackets"] = 0
-			metrics["TxPackets"] = 0
-			metrics["RxErrors"] = 0
-			metrics["TxErrors"] = 0
-			metrics["RxMissedErrors"] = 0
-			metrics["TxMissedErrors"] = 0
-			metrics["RxDropped"] = 0
-			metrics["TxDropped"] = 0
-			metrics["Collisions"] = 0
+			metrics = make(map[string]float64)
+			metrics["RxBytes"] = float64(0)
+			metrics["TxBytes"] = float64(0)
+			metrics["RxPackets"] = float64(0)
+			metrics["TxPackets"] = float64(0)
+			metrics["RxErrors"] = float64(0)
+			metrics["TxErrors"] = float64(0)
+			metrics["RxMissedErrors"] = float64(0)
+			metrics["TxMissedErrors"] = float64(0)
+			metrics["RxDropped"] = float64(0)
+			metrics["TxDropped"] = float64(0)
+			metrics["Collisions"] = float64(0)
 		}
-		rx_bytes, ok := metrics["RxBytes"].(float64)
+		rx_bytes, ok := metrics["RxBytes"]
 		if !ok {
 			rx_bytes = 0
 		}
-		tx_bytes, ok := metrics["TxBytes"].(float64)
+		tx_bytes, ok := metrics["TxBytes"]
 		if !ok {
 			tx_bytes = 0
 		}
-		rx_packets, ok := metrics["RxPackets"].(float64)
+		rx_packets, ok := metrics["RxPackets"]
 		if !ok {
 			rx_packets = 0
 		}
-		tx_packets, ok := metrics["TxPackets"].(float64)
+		tx_packets, ok := metrics["TxPackets"]
 		if !ok {
 			tx_packets = 0
 		}
-		rx_errors, ok := metrics["RxErrors"].(float64)
+		rx_errors, ok := metrics["RxErrors"]
 		if !ok {
 			rx_errors = 0
 		}
-		tx_errors, ok := metrics["TxErrors"].(float64)
+		tx_errors, ok := metrics["TxErrors"]
 		if !ok {
 			tx_errors = 0
 		}
-		rx_missed_errors, ok := metrics["RxMissedErrors"].(float64)
+		rx_missed_errors, ok := metrics["RxMissedErrors"]
 		if !ok {
 			rx_missed_errors = 0
 		}
-		tx_missed_errors, ok := metrics["TxMissedErrors"].(float64)
+		tx_missed_errors, ok := metrics["TxMissedErrors"]
 		if !ok {
 			tx_missed_errors = 0
 		}
-		rx_dropped, ok := metrics["RxDropped"].(float64)
+		rx_dropped, ok := metrics["RxDropped"]
 		if !ok {
 			rx_dropped = 0
 		}
-		tx_dropped, ok := metrics["TxDropped"].(float64)
+		tx_dropped, ok := metrics["TxDropped"]
 		if !ok {
 			tx_dropped = 0
 		}
-		collisions_, ok := metrics["Collisions"].(float64)
+		collisions_, ok := metrics["Collisions"]
 		if !ok {
 			collisions_ = 0
 		}
 
+		// place item into cache
+		var cEntry *interfaceCacheEntry
+		var label prometheus.Labels
+
+		cEntry, ok = s.interfCache[node_tid]
+		if ok {
+			// item already exists in cache; update the element and move to end of list
+			cEntry.timeStamp = secs
+			label = cEntry.label
+			// move to end of list
+			s.interfaceList.MoveToBack(cEntry.e)
+		} else {
+			// create new entry for cache
+			label = NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid)
+			cEntry = &interfaceCacheEntry{
+				label:     label,
+				timeStamp: secs,
+				key:       node_tid,
+			}
+			// place at end of list
+			e := s.interfaceList.PushBack(cEntry)
+			cEntry.e = e
+			s.interfCache[node_tid] = cEntry
+		}
+
 		// report the metrics to prometheus
-		label := NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid)
 		logging.GetLogger().Debugf("rx_bytes = %d, label = %s", rx_bytes, label)
 		rxBytes.With(label).Set(rx_bytes)
 		txBytes.With(label).Set(tx_bytes)
@@ -340,6 +359,29 @@ func (s *storePrometheus) InterfaceMetrics() {
 	}
 }
 
+// InterfaceMetrics - obtain and process list of interface metrics from skydive
+func (s *storePrometheus) InterfaceMetrics() {
+	// obtain skydive nodes of all network interfaces
+	queryString := "G.V().Has('EncapType', 'ether')"
+	result, err := s.gremlinClient.Query(queryString)
+	if err != nil {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin query error; err = %s, result = %s", err, result)
+		return
+	} else if len(result) == 0 {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin empty query")
+		return
+	}
+	// covert query (json text) result to dictionaries
+	// result is a list of dictionaries, one list entry per network interface.
+	var result2 []map[string]interface{}
+	err = json.Unmarshal(result, &result2)
+	if err != nil {
+		logging.GetLogger().Errorf("InterfaceMetrics: gremlin marshalling error; err = %s, result2 = %s", err, result2)
+		return
+	}
+	s.StoreInterfaceMetrics(result2)
+}
+
 // StoreFlows store flows info in memory, before being shipped out
 // For each flow reported, prepare prometheus entries, one for each direction of data flow.
 func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
@@ -353,7 +395,7 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 			logging.GetLogger().Debugf("flow = %s", f)
 
 			var ok bool
-			var cEntry *cacheEntry
+			var cEntry *flowCacheEntry
 			var label1, label2 prometheus.Labels
 
 			cEntry, ok = s.connectionCache[f.L3TrackingID]
@@ -374,7 +416,7 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 				protocol := f.Transport.Protocol
 				label1 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
 				label2 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
-				cEntry = &cacheEntry{
+				cEntry = &flowCacheEntry{
 					label1:    label1,
 					label2:    label2,
 					timeStamp: secs,
@@ -404,12 +446,12 @@ func (s *storePrometheus) cleanupExpiredEntries() {
 	for true {
 		e := s.connectionList.Front()
 		if e == nil {
-			return
+			break
 		}
-		c := e.Value.(*cacheEntry)
+		c := e.Value.(*flowCacheEntry)
 		if c.timeStamp > expireTime {
 			// no more expired items
-			return
+			break
 		}
 
 		// clean up the entry
@@ -422,6 +464,36 @@ func (s *storePrometheus) cleanupExpiredEntries() {
 		delete(s.connectionCache, c.key)
 		s.connectionList.Remove(e)
 	}
+
+	// go through the list until we reach recently used interfaces
+	for true {
+		e := s.interfaceList.Front()
+		if e == nil {
+			break
+		}
+		c := e.Value.(*interfaceCacheEntry)
+		if c.timeStamp > expireTime {
+			// no more expired items
+			break
+		}
+
+		// clean up the entry
+		logging.GetLogger().Debugf("secs = %s, deleting %s", secs, c.label)
+		rxBytes.Delete(c.label)
+		txBytes.Delete(c.label)
+		rxPackets.Delete(c.label)
+		txPackets.Delete(c.label)
+		rxErrors.Delete(c.label)
+		txErrors.Delete(c.label)
+		rxMissedErrors.Delete(c.label)
+		txMissedErrors.Delete(c.label)
+		rxDropped.Delete(c.label)
+		txDropped.Delete(c.label)
+		collisions.Delete(c.label)
+
+		delete(s.interfCache, c.key)
+		s.interfaceList.Remove(e)
+	}
 }
 
 func (s *storePrometheus) cleanupExpiredEntriesLoop() {
@@ -431,6 +503,7 @@ func (s *storePrometheus) cleanupExpiredEntriesLoop() {
 	}
 }
 
+// interfaceMericsLoop - independent running loop to periodically obtain interface metrics
 func (s *storePrometheus) interfaceMericsLoop() {
 	for true {
 		s.InterfaceMetrics()
@@ -496,8 +569,10 @@ func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 
 	s := &storePrometheus{
 		port:              ":" + port_id,
-		connectionCache:   make(map[string]*cacheEntry),
+		connectionCache:   make(map[string]*flowCacheEntry),
 		connectionList:    list.New(),
+		interfCache:       make(map[string]*interfaceCacheEntry),
+		interfaceList:     list.New(),
 		connectionTimeout: connectionTimeout,
 		gremlinClient:     gremlinClient,
 	}
@@ -510,6 +585,7 @@ func NewStorePrometheusWrapper(cfg *viper.Viper) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	// start independent threads to perform actions in parallel
 	go startPrometheusInterface(s)
 	go s.cleanupExpiredEntriesLoop()
 	go s.interfaceMericsLoop()
