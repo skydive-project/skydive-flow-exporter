@@ -234,7 +234,7 @@ func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]i
 	secs := time.Now().Unix()
 	for _, interface_entry := range interface_metrics {
 		var ipv4, ipv6 string
-		var metrics map[string]float64
+		var metrics map[string]interface{}
 
 		// for each interface entry, extract all the relevant information
 		host := interface_entry["Host"].(string)
@@ -258,9 +258,9 @@ func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]i
 		}
 
 		// metrics are reported only if non-zero; fill in missing metrics
-		metrics, ok = metadata["Metric"].(map[string]float64)
+		metrics, ok = metadata["Metric"].(map[string]interface{})
 		if !ok {
-			metrics = make(map[string]float64)
+			metrics = make(map[string]interface{})
 			metrics["RxBytes"] = float64(0)
 			metrics["TxBytes"] = float64(0)
 			metrics["RxPackets"] = float64(0)
@@ -275,47 +275,47 @@ func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]i
 		}
 		rx_bytes, ok := metrics["RxBytes"]
 		if !ok {
-			rx_bytes = 0
+			rx_bytes = float64(0)
 		}
 		tx_bytes, ok := metrics["TxBytes"]
 		if !ok {
-			tx_bytes = 0
+			tx_bytes = float64(0)
 		}
 		rx_packets, ok := metrics["RxPackets"]
 		if !ok {
-			rx_packets = 0
+			rx_packets = float64(0)
 		}
 		tx_packets, ok := metrics["TxPackets"]
 		if !ok {
-			tx_packets = 0
+			tx_packets = float64(0)
 		}
 		rx_errors, ok := metrics["RxErrors"]
 		if !ok {
-			rx_errors = 0
+			rx_errors = float64(0)
 		}
 		tx_errors, ok := metrics["TxErrors"]
 		if !ok {
-			tx_errors = 0
+			tx_errors = float64(0)
 		}
 		rx_missed_errors, ok := metrics["RxMissedErrors"]
 		if !ok {
-			rx_missed_errors = 0
+			rx_missed_errors = float64(0)
 		}
 		tx_missed_errors, ok := metrics["TxMissedErrors"]
 		if !ok {
-			tx_missed_errors = 0
+			tx_missed_errors = float64(0)
 		}
 		rx_dropped, ok := metrics["RxDropped"]
 		if !ok {
-			rx_dropped = 0
+			rx_dropped = float64(0)
 		}
 		tx_dropped, ok := metrics["TxDropped"]
 		if !ok {
-			tx_dropped = 0
+			tx_dropped = float64(0)
 		}
 		collisions_, ok := metrics["Collisions"]
 		if !ok {
-			collisions_ = 0
+			collisions_ = float64(0)
 		}
 
 		// place item into cache
@@ -345,17 +345,17 @@ func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]i
 
 		// report the metrics to prometheus
 		logging.GetLogger().Debugf("rx_bytes = %d, label = %s", rx_bytes, label)
-		rxBytes.With(label).Set(rx_bytes)
-		txBytes.With(label).Set(tx_bytes)
-		rxPackets.With(label).Set(rx_packets)
-		txPackets.With(label).Set(tx_packets)
-		rxErrors.With(label).Set(rx_errors)
-		txErrors.With(label).Set(tx_errors)
-		rxMissedErrors.With(label).Set(rx_missed_errors)
-		txMissedErrors.With(label).Set(tx_missed_errors)
-		rxDropped.With(label).Set(rx_dropped)
-		txDropped.With(label).Set(tx_dropped)
-		collisions.With(label).Set(collisions_)
+		rxBytes.With(label).Set(rx_bytes.(float64))
+		txBytes.With(label).Set(tx_bytes.(float64))
+		rxPackets.With(label).Set(rx_packets.(float64))
+		txPackets.With(label).Set(tx_packets.(float64))
+		rxErrors.With(label).Set(rx_errors.(float64))
+		txErrors.With(label).Set(tx_errors.(float64))
+		rxMissedErrors.With(label).Set(rx_missed_errors.(float64))
+		txMissedErrors.With(label).Set(tx_missed_errors.(float64))
+		rxDropped.With(label).Set(rx_dropped.(float64))
+		txDropped.With(label).Set(tx_dropped.(float64))
+		collisions.With(label).Set(collisions_.(float64))
 	}
 }
 
