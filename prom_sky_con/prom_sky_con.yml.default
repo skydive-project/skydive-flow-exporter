@@ -22,3 +22,4 @@ pipeline:
     prom_sky_con:
       port: 9100
       connection_timeout: 60
+      monitoring_port: 8089
