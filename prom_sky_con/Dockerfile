@@ -15,4 +15,5 @@ RUN apt-get -y update \
 COPY --from=build /go/bin/prom_sky_con /usr/bin/prom_sky_con
 COPY --from=build /go/src/github.com/SODALITE-EU/skydive-flow-exporter/prom_sky_con/prom_sky_con.yml.default /etc/prom_sky_con.yml
 EXPOSE 9100
+EXPOSE 8089
 ENTRYPOINT ["/usr/bin/prom_sky_con", "/etc/prom_sky_con.yml"]
