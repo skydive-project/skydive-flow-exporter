@@ -28,9 +28,11 @@ import (
 	"container/list"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -47,6 +49,9 @@ import (
 // Connections with no traffic for timeout period (in seconds) are no longer reported
 const defaultConnectionTimeout = 60
 
+// Port to use register monitoring_id for Sodalite dashboards
+const defaultMonitoringPort = "8089"
+
 // Run the cleanup process every cleanupTime seconds
 const cleanupTime = 120
 
@@ -58,8 +63,8 @@ const (
 	DirectionTtoI string = "target_to_initiator"
 )
 
-var connectionLabels = []string{"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid", "protocol"}
-var interfaceLabels = []string{"interface_name", "host", "interface_type", "ipv4", "ipv6", "node_tid"}
+var connectionLabels = []string{"initiator_ip", "target_ip", "initiator_port", "target_port", "direction", "node_tid", "protocol", "monitoring_id", "instance_name", "deployment_label"}
+var interfaceLabels = []string{"interface_name", "host", "interface_type", "ipv4", "ipv6", "node_tid", "monitoring_id", "instance_name", "deployment_label"}
 
 // data to be exported to prometheus
 // one data item per tuple
@@ -188,13 +193,15 @@ type interfaceCache map[string]*interfaceCacheEntry
 
 type storePrometheus struct {
 	pipeline          *core.Pipeline // not currently used
-	port              string
+	prometheus_port   string
+	monitoring_port   string
 	connectionCache   flowCache
 	connectionList    *list.List
 	interfCache       interfaceCache
 	interfaceList     *list.List
 	connectionTimeout int64
 	gremlinClient     *client.GremlinQueryHelper
+	addrsMap          map[string]interface{}
 }
 
 // SetPipeline setup; called by core/pipeline.NewPipeline
@@ -203,7 +210,12 @@ func (s *storePrometheus) SetPipeline(pipeline *core.Pipeline) {
 }
 
 // NewFlowLabel helper function to create proper prometheus Label syntax
-func NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string, protocol flow.FlowProtocol) prometheus.Labels {
+func (s *storePrometheus) NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, direction, node_tid string, protocol flow.FlowProtocol) prometheus.Labels {
+	var params map[string]string
+	params, ok := s.addrsMap[initiator_ip].(map[string]string)
+	if !ok {
+		params = map[string]string { "monitoring_id": "", "instance_name": "", "deployment_label": "" }
+	}
 	label := prometheus.Labels{
 		"initiator_ip":   initiator_ip,
 		"target_ip":      target_ip,
@@ -212,12 +224,21 @@ func NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, directio
 		"direction":      direction,
 		"node_tid":       node_tid,
 		"protocol":       protocol.String(),
+		"monitoring_id":  params["monitoring_id"],
+		"instance_name":  params["instance_name"],
+		"deployment_label": params["deployment_label"],
 	}
 	return label
 }
 
 // NewInterfaceLabel helper function to create proper prometheus Label syntax
-func NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid string) prometheus.Labels {
+func (s *storePrometheus) NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid string) prometheus.Labels {
+	var params map[string]string
+	ipv4_base := strings.Split(ipv4, "/")[0]
+	params, ok := s.addrsMap[ipv4_base].(map[string]string)
+	if !ok {
+		params = map[string]string { "monitoring_id": "", "instance_name": "", "deployment_label": "" }
+	}
 	label := prometheus.Labels{
 		"interface_name": interface_name,
 		"host":           host,
@@ -225,6 +246,9 @@ func NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_ti
 		"ipv4":           ipv4,
 		"ipv6":           ipv6,
 		"node_tid":       node_tid,
+		"monitoring_id":  params["monitoring_id"],
+		"instance_name":  params["instance_name"],
+		"deployment_label": params["deployment_label"],
 	}
 	return label
 }
@@ -331,7 +355,7 @@ func (s *storePrometheus) StoreInterfaceMetrics(interface_metrics []map[string]i
 			s.interfaceList.MoveToBack(cEntry.e)
 		} else {
 			// create new entry for cache
-			label = NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid)
+			label = s.NewInterfaceLabel(interface_name, host, interface_type, ipv4, ipv6, node_tid)
 			cEntry = &interfaceCacheEntry{
 				label:     label,
 				timeStamp: secs,
@@ -414,8 +438,8 @@ func (s *storePrometheus) StoreFlows(flows map[core.Tag][]interface{}) error {
 				target_port := strconv.FormatInt(f.Transport.B, 10)
 				node_tid := f.NodeTID
 				protocol := f.Transport.Protocol
-				label1 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
-				label2 = NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
+				label1 = s.NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionItoT, node_tid, protocol)
+				label2 = s.NewFlowLabel(initiator_ip, target_ip, initiator_port, target_port, DirectionTtoI, node_tid, protocol)
 				cEntry = &flowCacheEntry{
 					label1:    label1,
 					label2:    label2,
@@ -506,8 +530,57 @@ func (s *storePrometheus) cleanupExpiredEntriesLoop() {
 // interfaceMericsLoop - independent running loop to periodically obtain interface metrics
 func (s *storePrometheus) interfaceMericsLoop() {
 	for true {
-		s.InterfaceMetrics()
 		time.Sleep(interfaceMetricsTime * time.Second)
+		s.InterfaceMetrics()
+	}
+}
+
+
+// We expect to receive JSONin the following format:
+// {"monitoring_id": <value>, "deployment_label": <value>, "instance_name": <value>, "action": <register/unregister>, "addrs": [<list of IPV4 addresses>]}
+func (s *storePrometheus) processMonitoringId(conn net.Conn) {
+	b := make([]byte, 2048)
+	conn.SetReadDeadline(time.Now().Add(time.Second))
+	n, err := conn.Read(b)
+	logging.GetLogger().Debugf("b = %s", b)
+	if (err != nil) {
+		return
+	}
+	var b2 map[string]interface{}
+	err = json.Unmarshal(b[:n], &b2)
+	logging.GetLogger().Debugf("b2 = %s", b2)
+	if (err != nil) {
+		return
+	}
+	addrs := (b2["addrs"]).([]interface{})
+	// TBD - error checking
+	if b2["action"] == "register" {
+		for _, addr := range addrs {
+			logging.GetLogger().Infof("adding addr = %s, monitoring_id = %s", addr, b2["monitoring_id"])
+			params := map[string]string{
+                                   "monitoring_id": b2["monitoring_id"].(string), 
+                                   "deployment_label": b2["deployment_label"].(string),
+                                   "instance_name": b2["instance_name"].(string),
+				}
+			s.addrsMap[addr.(string)] = params
+		}
+	} else if b2["action"] == "unregister" {
+		for _, addr := range addrs {
+			logging.GetLogger().Infof("deleting addr = %s, monitoring_id = %s", addr, b2["monitoring_id"])
+			delete(s.addrsMap, addr.(string))
+		}
+	}
+	logging.GetLogger().Infof("addrsMap = %s", s.addrsMap)
+}
+
+// processMonitoringIds - register/unregister monitoring_id with matching IP address
+func (s *storePrometheus) processMonitoringIds() {
+	logging.GetLogger().Infof("starting processMonitoringIds thread")
+	ln, _ := net.Listen("tcp", s.monitoring_port)
+	for {
+		conn, _ := ln.Accept()
+		s.processMonitoringId(conn)
+		conn.Close()
 	}
 }
 
@@ -539,7 +612,7 @@ func startPrometheusInterface(s *storePrometheus) {
 	// via an HTTP server. "/metrics" is the usual endpoint for that.
 	http.Handle("/metrics", promhttp.Handler())
 
-	err := http.ListenAndServe(s.port, nil)
+	err := http.ListenAndServe(s.prometheus_port, nil)
 	if err != nil {
 		logging.GetLogger().Errorf("error on http.ListenAndServe = %s", err)
 		os.Exit(1)
@@ -553,6 +626,11 @@ func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 	if port_id == "" {
 		logging.GetLogger().Errorf("prometheus skydive port missing in configuration file")
 		return nil, fmt.Errorf("Failed to detect port number")
+	}
+	monitoring_port_id := cfg.GetString(core.CfgRoot + "store.prom_sky_con.monitoring_port")
+	if monitoring_port_id == "" {
+		logging.GetLogger().Errorf("prometheus skydive monitoring port missing in configuration file")
+		monitoring_port_id = defaultMonitoringPort
 	}
 	logging.GetLogger().Infof("prometheus skydive port = %s", port_id)
 	connectionTimeout := cfg.GetInt64(core.CfgRoot + "store.prom_sky_con.connection_timeout")
@@ -568,13 +646,15 @@ func NewStorePrometheus(cfg *viper.Viper) (*storePrometheus, error) {
 	}
 
 	s := &storePrometheus{
-		port:              ":" + port_id,
+		prometheus_port:   ":" + port_id,
+		monitoring_port:   ":" + monitoring_port_id,
 		connectionCache:   make(map[string]*flowCacheEntry),
 		connectionList:    list.New(),
 		interfCache:       make(map[string]*interfaceCacheEntry),
 		interfaceList:     list.New(),
 		connectionTimeout: connectionTimeout,
 		gremlinClient:     gremlinClient,
+		addrsMap:          make(map[string]interface{}),
 	}
 	return s, nil
 }
@@ -589,5 +669,6 @@ func NewStorePrometheusWrapper(cfg *viper.Viper) (interface{}, error) {
 	go startPrometheusInterface(s)
 	go s.cleanupExpiredEntriesLoop()
 	go s.interfaceMericsLoop()
+	go s.processMonitoringIds()
 	return s, nil
 }
